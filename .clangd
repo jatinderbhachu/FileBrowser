@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: [-std=c++17, -Wall, --include-directory=/dev/libs/imgui182, --include-directory=/dev/libs/stb, --include-directory=/dev/libs/glfw-3.3/include, --include-directory=./glad/include]
+  Compiler: clang++
+
+Index:
+  # Disable slow background indexing of these files.
+  Background: Skip
