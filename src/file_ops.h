@@ -4,6 +4,7 @@
 #include "types.h"
 
 class Path;
+class FileOpProgressSink;
 
 namespace FileOps {
     struct Record {
@@ -12,7 +13,7 @@ namespace FileOps {
         unsigned long attributes;
     };
 
-    enum SortDirection {
+    enum class SortDirection {
         Ascending,
         Descending
     };
@@ -46,8 +47,11 @@ namespace FileOps {
     void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
 
+    Path getCurrentProcessPath();
+
     bool doesPathExist(const Path& path);
     bool deleteFileOrDirectory(const Path& itemPath, bool moveToRecycleBin);
     bool moveFileOrDirectory(const Path& itemPath, const Path& toDirectory, const std::string& newName);
+    bool copyFileOrDirectory(const Path& itemPath, const Path& toDirectory, const std::string& newName, FileOpProgressSink* ps = nullptr);
     bool renameFileOrDirectory(const Path& itemPath, const std::string& newName);
-}
+};

@@ -1,3 +1,4 @@
+#include <mutex>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -5,6 +6,9 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 
+#include "path.h"
+#include "file_ops.h"
+#include "browser_widget.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -20,51 +24,64 @@
 #include <filesystem>
 #include <fstream>
 #include <memory.h>
+#include "file_ops_worker.h"
 
-#include "path.h"
-#include "file_ops.h"
-#include "browser_widget.h"
+
+static const char* DebugTestPath = "./browser_test/runtime_test";
 
 void makeSandboxFolder() {
     // c:/browser_test
     // a folder with 10_000 files
-    std::filesystem::path testPath("C:/browser_test/runtime_test");
+    std::filesystem::path testPath(DebugTestPath);
 
-    if(std::filesystem::exists(testPath)) return;
+    if(!std::filesystem::exists(testPath))
+        printf("Test path %s does not exist. Creating it..", testPath.string().c_str());
+    else 
+        return;
 
-    std::filesystem::create_directory(testPath);
+    std::filesystem::create_directories(testPath);
 
     std::filesystem::path thousandFilesPath = testPath / "1k_files";
     std::filesystem::create_directory(thousandFilesPath);
 
     for(int i = 0; i < 1000; i++) {
-        std::ofstream outputFile((thousandFilesPath / std::to_string(i)).u8string());
+        std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
         outputFile << ".";
         outputFile.close();
     }
 }
 
+
+
+
+
 int main() {
-
-    //Path myPath("C:\\Users\\jatinder\\");
-    //Path rPath("./testdir/file.txt");
-
-    //myPath.popSegment();
-    //myPath.appendRelative(rPath);
 
 #if 1
     makeSandboxFolder();
+
+    //Path fileToDelete(DebugTestPath);
+    //fileToDelete.appendName("unity.mkv");
+    //fileToDelete.toAbsolute();
+
+    //FileOps::deleteFileOrDirectory(fileToDelete, false);
+    //{
+        //Path fileToCopy(DebugTestPath);
+        //fileToCopy.appendName("unity.mkv");
+        //fileToCopy.toAbsolute();
+        //Path toDirectory(DebugTestPath);
+        //toDirectory.appendName("temp");
+        //toDirectory.toAbsolute();
+
+        //FileOps::copyFileOrDirectory(fileToCopy, toDirectory, "copiedFile.mkv");
+    //}
 #endif
 
-#if 1
+    FileOpsWorker fileOpsWorker;
+
     int width = 1280;
     int height = 720;
 
-    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    if(hr != S_OK) {
-        printf("Failed to initialize COM library\n");
-        return 0;
-    }
 
     glfwInit();
 
@@ -94,7 +111,7 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    io.Fonts->AddFontFromFileTTF("default.ttf", 16);
+    //io.Fonts->AddFontFromFileTTF("default.ttf", 16);
 
     ImVec4 clearColor{0.1f, 0.1f, 0.1f, 1.0f};
 
@@ -104,12 +121,26 @@ int main() {
 
     bool updateViewFlag = true;
 
-    Path dir("C:\\browser_test");
+    Path dir(DebugTestPath);
+    dir.toAbsolute();
     Browser browser(dir);
 
     MSG msg;
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
+
+        static bool CanAdd = true;
+
+        if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && CanAdd) {
+            CanAdd = false;
+            printf("Add to queue..\n");
+            FileOp op;
+            op.opType = FileOpType::FILE_OP_COPY;
+            op.from = "./browser_test/runtime_test/unity.mkv";
+            op.to = "./browser_test/runtime_test/temp";
+            op.newName = "unity.mkv";
+            fileOpsWorker.addFileOperation(op);
+        }
 
         if(updateViewFlag) {
             FileOps::enumerateDirectory(dir, directoryItems);
@@ -123,20 +154,38 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+
+
         ImGuiWindowFlags mainWindowFlags = 
             ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoResize
             | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoTitleBar;
+            | ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
         glfwGetWindowSize(window, &width, &height);
 
         ImGui::SetNextWindowPos(ImVec2{0.0f, 0.0f});
         ImGui::SetNextWindowSize(ImVec2{(float)width, (float)height});
-        ImGui::Begin("Main window", NULL, mainWindowFlags);
 
+        ImGui::Begin("Main window", NULL, mainWindowFlags);
         browser.beginFrame();
         browser.draw();
+        ImGui::End();
+
+
+        ImGui::Begin("progress window");
+
+        // consume result queue
+        fileOpsWorker.syncProgress();
+
+        // display any in progress operations
+        for(FileOp& op : fileOpsWorker.mFileOperations) {
+            if(op.idx >= 0) {
+                ImGui::Text("Operation %d progress %d/%d \n", op.idx, op.currentProgress, op.totalProgress);
+            }
+        }
+
         ImGui::End();
 
 
@@ -154,8 +203,5 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 
-    CoUninitialize();
-
-#endif
     return 0;
 }

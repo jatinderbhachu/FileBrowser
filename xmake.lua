@@ -8,12 +8,12 @@ target("main")
     set_languages("c++17")
     set_kind("binary")
 
-    add_linkdirs("C:/dev/libs/glfw-3.3/lib")
+    add_linkdirs("C:/dev/libs/glfw/libs/src/Release")
     add_includedirs(
         "./src",
         "src/glad/include",
         "C:/dev/libs/imgui182",
-        "C:/dev/libs/glfw-3.3/include"
+        "C:/dev/libs/glfw/include"
         )
 
     if is_mode("debug") then
@@ -28,7 +28,7 @@ target("main")
 
     add_ldflags("/SUBSYSTEM:CONSOLE")
 
-    add_links("glfw3_mt", "user32", "gdi32", "shell32", "Ole32")
+    add_links("glfw3", "user32", "gdi32", "shlwapi", "shell32", "Ole32")
 
     add_files(
         "src/glad/**.c",

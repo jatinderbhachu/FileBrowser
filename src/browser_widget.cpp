@@ -21,7 +21,10 @@ void Browser::beginFrame() {
 
 void Browser::setCurrentDirectory(const Path& path) {
     mUpdateFlag = true;
-    mCurrentDirectory = path;
+    if(path.getType() == Path::PATH_RELATIVE) {
+
+        mCurrentDirectory = path;
+    }
 }
 
 void Browser::draw() {
@@ -32,7 +35,7 @@ void Browser::draw() {
     if(mYScroll < 0) mYScroll = 0;
     if(mYScroll >= mDisplayList.size()) mYScroll = mDisplayList.size() - 1;
 
-    const std::string& currentDirStr = mCurrentDirectory.string();
+    const std::string& currentDirStr = mCurrentDirectory.str();
 
     auto dirSegments = mCurrentDirectory.getSegments();
 
@@ -62,9 +65,9 @@ void Browser::draw() {
                     int numPop = dirSegments.size() - i;
                     while(--numPop > 0) targetPath.popSegment();
 
-                    printf("Drag %s onto %s\n", sourcePath.string().c_str(), targetPath.string().c_str());
+                    printf("Drag %s onto %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
                     bool success = FileOps::moveFileOrDirectory(sourcePath, targetPath, sourceItem.name);
-                    assert(success);
+                    assert(success && "Failed to move file/directory");
                     mUpdateFlag = true;
                 }
                 ImGui::EndDragDropTarget();
@@ -168,9 +171,9 @@ void Browser::draw() {
                     Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
                     Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
 
-                    printf("Drag %s onto %s\n", sourcePath.string().c_str(), targetPath.string().c_str());
+                    printf("Drag %s onto %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
                     bool success = FileOps::moveFileOrDirectory(sourcePath, targetPath, sourceItem.name);
-                    assert(success);
+                    assert(success && "Failed to move file/directory");
                     mUpdateFlag = true;
                 }
 

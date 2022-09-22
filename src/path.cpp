@@ -1,31 +1,31 @@
 #include "path.h"
 
 #include "string_util.h"
+#include "file_ops.h"
 
 #include <iostream>
 #include <assert.h>
 
-constexpr char SEPARATOR = '\\';
+static const char SEPARATOR = '\\';
+static const std::string CURRENT_PATH = ".";
+static const std::string PARENT_PATH = "..";
 
 
 Path::Path(const std::string& pathStr) 
-    : mText(pathStr)
-{
+    : mText(pathStr) {
     parse();
 }
 
 
-Path::Path(const Path& other)
-{
+Path::Path(const Path& other) {
     mSegments = other.getSegments();
-    mText = other.string();
+    mText = other.str();
     mType = other.getType();
 }
 
 
 void Path::parse() {
-
-    assert(!mText.empty());
+    assert(!mText.empty() && "Path is empty");
 
     // check if string contains any forward slashes
     for(int i = 0; i < mText.size(); i++) {
@@ -54,16 +54,8 @@ void Path::parse() {
         pos++;
     }
 
-
-    //{
-        //int i = 0;
-        //for(auto segment : mSegments) {
-            //std::cout << i++ << ' ' << segment << '\n';
-        //}
-    //}
-
     // is absolute or relative
-    assert(mSegments.size() > 0);
+    assert(mSegments.size() > 0 && "Failed to parse path");
 
     size_t colonIndex = pathStr.find(':');
     if(colonIndex != std::string::npos && pathStr.size() > (1+colonIndex) && pathStr[colonIndex + 1] == SEPARATOR) {
@@ -73,14 +65,13 @@ void Path::parse() {
         mType = PATH_RELATIVE;
         //std::cout << mText << " Path is RELATIVE\n";
     }
-
 }
 
-const std::string& Path::string() const {
+const std::string& Path::str() const {
     return mText;
 }
 
-std::wstring Path::wstring() const {
+std::wstring Path::wstr() const {
     return Util::Utf8ToWstring(mText);
 }
 
@@ -95,13 +86,13 @@ void Path::popSegment() {
 }
 
 void Path::appendRelative(const Path& relativePath) {
-    assert(relativePath.getType() == PATH_RELATIVE);
+    assert(relativePath.getType() == PATH_RELATIVE && "Path is not relative.");
 
     auto relativeSegments = relativePath.getSegments();
 
     std::string stringToAppend;
 
-    for(auto segment : relativeSegments) {
+    for(std::string_view segment : relativeSegments) {
         if(segment[0] == '.') continue;
         stringToAppend += SEPARATOR;
         stringToAppend += std::string(segment);
@@ -113,6 +104,32 @@ void Path::appendRelative(const Path& relativePath) {
 
 void Path::appendName(const std::string& name) {
     mText += SEPARATOR + name;
+    parse();
+}
+
+void Path::toAbsolute() {
+    assert(mType == PATH_RELATIVE);
+
+    Path processPath = FileOps::getCurrentProcessPath();
+    std::vector<std::string_view> baseSegments = processPath.getSegments();
+
+    for(auto relSegment : mSegments) {
+        if(relSegment == CURRENT_PATH) {
+            // do nothing ..
+        } else if (relSegment == PARENT_PATH) {
+            baseSegments.pop_back();
+        } else {
+            baseSegments.push_back(relSegment);
+        }
+    }
+
+    std::string result("");
+    for(auto segment : baseSegments) {
+        result.append(segment);
+        result.append(std::string(1, SEPARATOR));
+    }
+
+    mText = result;
     parse();
 }
 

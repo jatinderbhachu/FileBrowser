@@ -16,14 +16,15 @@ public:
     Path(const std::string& pathStr);
     Path(const Path& other);
 
-    const std::string& string() const;
-    std::wstring wstring() const;
+    const std::string& str() const;
+    std::wstring wstr() const;
 
 
     void popSegment();
     void appendRelative(const Path&);
     void appendName(const std::string&);
 
+    void toAbsolute();
 
     bool hasFileExtension();
     std::string getFileExtension();
