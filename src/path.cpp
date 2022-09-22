@@ -1,7 +1,7 @@
-#include "path.h"
+#include "Path.h"
 
-#include "string_util.h"
-#include "file_ops.h"
+#include "StringUtils.h"
+#include "FileOps.h"
 
 #include <iostream>
 #include <assert.h>

@@ -1,16 +1,16 @@
-#include "browser_widget.h"
+#include "BrowserWidget.h"
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "file_ops.h"
+#include "FileOps.h"
 
 
-Browser::Browser(const Path& path) 
+BrowserWidget::BrowserWidget(const Path& path) 
     : mDrawList(nullptr),
     mCurrentDirectory(path),
     mUpdateFlag(true)
 { }
 
-void Browser::beginFrame() {
+void BrowserWidget::beginFrame() {
     const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
     ImGui::Begin("filebrowser", NULL, flags);
@@ -19,7 +19,7 @@ void Browser::beginFrame() {
 
 }
 
-void Browser::setCurrentDirectory(const Path& path) {
+void BrowserWidget::setCurrentDirectory(const Path& path) {
     mUpdateFlag = true;
     if(path.getType() == Path::PATH_RELATIVE) {
 
@@ -27,7 +27,7 @@ void Browser::setCurrentDirectory(const Path& path) {
     }
 }
 
-void Browser::draw() {
+void BrowserWidget::draw() {
     std::vector<FileOps::Record>& displayList = mDisplayList;
     ImGuiIO& io = ImGui::GetIO();
 
@@ -122,7 +122,7 @@ void Browser::draw() {
 
     static ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersV | ImGuiTableFlags_ContextMenuInBody | ImGuiTableFlags_Sortable;
 
-    ImGui::BeginTable("Browser", 2, tableFlags);
+    ImGui::BeginTable("BrowserWidget", 2, tableFlags);
     ImGui::TableSetupColumn("icon");
     ImGui::TableSetupColumn("Name");
 

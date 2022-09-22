@@ -1,12 +1,12 @@
-#include "file_ops.h"
-#include "file_ops_progress_sink.h"
+#include "FileOps.h"
+#include "FileOpsProgressSink.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
 
-#include "string_util.h"
+#include "StringUtils.h"
 #include <Shellapi.h>
 
 #include <ocidl.h>
@@ -17,7 +17,7 @@
 #include <shlwapi.h>
 #include <assert.h>
 
-#include "path.h"
+#include "Path.h"
 
 namespace FileOps {
 

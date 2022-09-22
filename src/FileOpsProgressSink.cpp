@@ -1,8 +1,8 @@
-#include "file_ops_progress_sink.h"
+#include "FileOpsProgressSink.h"
 #include <combaseapi.h>
 
 #include <shlwapi.h>
-#include "file_ops_worker.h"
+#include "FileOpsWorker.h"
 
 
 FileOpProgressSink::FileOpProgressSink() : _cRef(1)

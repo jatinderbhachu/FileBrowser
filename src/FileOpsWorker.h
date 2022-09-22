@@ -1,6 +1,6 @@
 #pragma once
 #include "types.h"
-#include "threaded_queue.h"
+#include "ThreadedQueue.h"
 
 #include <thread>
 #include <string>

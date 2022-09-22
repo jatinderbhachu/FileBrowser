@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-#include "path.h"
+#include "Path.h"
 
 #include <vector>
 #include <unordered_map>
@@ -13,10 +13,10 @@ namespace FileOps {
     struct Record;
 }
 
-class Browser
+class BrowserWidget
 {
 public:
-    Browser(const Path& path);
+    BrowserWidget(const Path& path);
 
     void beginFrame();
     void setCurrentDirectory(const Path& path);

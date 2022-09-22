@@ -6,9 +6,9 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 
-#include "path.h"
-#include "file_ops.h"
-#include "browser_widget.h"
+#include "Path.h"
+#include "FileOps.h"
+#include "BrowserWidget.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -24,7 +24,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory.h>
-#include "file_ops_worker.h"
+#include "FileOpsWorker.h"
 
 
 static const char* DebugTestPath = "./browser_test/runtime_test";
@@ -123,7 +123,7 @@ int main() {
 
     Path dir(DebugTestPath);
     dir.toAbsolute();
-    Browser browser(dir);
+    BrowserWidget browser(dir);
 
     MSG msg;
     while(!glfwWindowShouldClose(window)){

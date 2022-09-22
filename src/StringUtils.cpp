@@ -1,4 +1,4 @@
-#include "string_util.h"
+#include "StringUtils.h"
 
 
 std::wstring Util::Utf8ToWstring(const std::string& str) {

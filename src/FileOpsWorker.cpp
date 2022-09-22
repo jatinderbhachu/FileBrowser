@@ -1,7 +1,7 @@
-#include "file_ops_worker.h"
-#include "file_ops.h"
-#include "path.h"
-#include "file_ops_progress_sink.h"
+#include "FileOpsWorker.h"
+#include "FileOps.h"
+#include "Path.h"
+#include "FileOpsProgressSink.h"
 #include <memory>
 #include <thread>
 

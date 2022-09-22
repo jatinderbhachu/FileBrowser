@@ -1,6 +1,6 @@
 #pragma once
 #include <shobjidl_core.h>
-#include "threaded_queue.h"
+#include "ThreadedQueue.h"
 
 class FileOpsWorker;
 
