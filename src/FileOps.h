@@ -50,8 +50,8 @@ namespace FileOps {
     Path getCurrentProcessPath();
 
     bool doesPathExist(const Path& path);
-    bool deleteFileOrDirectory(const Path& itemPath, bool moveToRecycleBin);
-    bool moveFileOrDirectory(const Path& itemPath, const Path& toDirectory, const std::string& newName);
-    bool copyFileOrDirectory(const Path& itemPath, const Path& toDirectory, const std::string& newName, FileOpProgressSink* ps = nullptr);
+    bool deleteFileOrDirectory(const Path& itemPath, bool moveToRecycleBin, FileOpProgressSink* ps = nullptr);
+    bool moveFileOrDirectory(const Path& itemPath, const Path& toDirectory, FileOpProgressSink* ps = nullptr);
+    bool copyFileOrDirectory(const Path& itemPath, const Path& toDirectory, FileOpProgressSink* ps = nullptr);
     bool renameFileOrDirectory(const Path& itemPath, const std::string& newName);
 };

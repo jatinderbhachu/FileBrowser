@@ -123,7 +123,7 @@ int main() {
 
     Path dir(DebugTestPath);
     dir.toAbsolute();
-    BrowserWidget browser(dir);
+    BrowserWidget browser(dir, &fileOpsWorker);
 
     MSG msg;
     while(!glfwWindowShouldClose(window)){
@@ -136,9 +136,8 @@ int main() {
             printf("Add to queue..\n");
             FileOp op;
             op.opType = FileOpType::FILE_OP_COPY;
-            op.from = "./browser_test/runtime_test/unity.mkv";
-            op.to = "./browser_test/runtime_test/temp";
-            op.newName = "unity.mkv";
+            op.from = Path("./browser_test/runtime_test/unity.mkv");
+            op.to = Path("./browser_test/runtime_test/temp");
             fileOpsWorker.addFileOperation(op);
         }
 

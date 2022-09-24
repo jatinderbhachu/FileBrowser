@@ -94,16 +94,13 @@ bool doesPathExist(const Path& path) {
 }
 
 
-bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin) {
+bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgressSink* ps) {
     if(!doesPathExist(path)) {
         printf("Path %s does not exist.\n", path.str().c_str());
         return false;
     }
-    printf("Deleting path %s\n", path.str().c_str());
 
     std::wstring wPathStr(path.wstr());
-
-    FileOpProgressSink* ps = new FileOpProgressSink();
 
     IFileOperation* fo = nullptr;
     HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
@@ -114,7 +111,9 @@ bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin) {
     }
 
     DWORD cookie = 0;
-    hr = fo->Advise(ps, &cookie);
+    if(ps != nullptr) {
+        hr = fo->Advise(ps, &cookie);
+    }
 
 
     IShellItem* fileItem = nullptr;
@@ -135,55 +134,66 @@ bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin) {
     fo->DeleteItem(fileItem, NULL);
     hr = fo->PerformOperations();
 
-    fo->Unadvise(cookie);
+    if(ps != nullptr) {
+        fo->Unadvise(cookie);
+    }
 
     fo->Release();
-    delete ps;
 
     return true;
 }
 
 
-bool moveFileOrDirectory(const Path& itemPath, const Path& to, const std::string& newName) {
+bool moveFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
         return false;
     }
     std::wstring wItemPath(itemPath.wstr());
     std::wstring wDestinationPath(to.wstr());
-    std::wstring wNewName(Util::Utf8ToWstring(newName));
 
     IShellItem* itemToMove = nullptr;
     IShellItem* destinationDir = nullptr;
     SHCreateItemFromParsingName(wItemPath.data(), NULL, IID_PPV_ARGS(&itemToMove));
     SHCreateItemFromParsingName(wDestinationPath.data(), NULL, IID_PPV_ARGS(&destinationDir));
+    
     if(itemToMove == nullptr || destinationDir == nullptr) {
         printf("Failed to create shell items for source destination paths\n");
         return false;
     }
+
     IFileOperation* fo = nullptr;
     HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
     if(!SUCCEEDED(result)) return false;
 
+    DWORD cookie = 0;
+    if(ps != nullptr) {
+        result = fo->Advise(ps, &cookie);
+    }
+
     DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
 
     fo->SetOperationFlags(flags);
-    fo->MoveItem(itemToMove, destinationDir, wNewName.data(), NULL);
+    fo->MoveItem(itemToMove, destinationDir, NULL, NULL);
     result = fo->PerformOperations();
+
+    if(ps != nullptr) {
+        fo->Unadvise(cookie);
+    }
+
     if(!SUCCEEDED(result)) return false;
     fo->Release();
 
     return true;
 }
 
-bool copyFileOrDirectory(const Path& itemPath, const Path& to, const std::string& newName, FileOpProgressSink* ps) {
+bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
         return false;
     }
     std::wstring wItemPath(itemPath.wstr());
     std::wstring wDestinationPath(to.wstr());
-    std::wstring wNewName(Util::Utf8ToWstring(newName));
 
     IShellItem* itemToMove = nullptr;
     IShellItem* destinationDir = nullptr;
@@ -206,7 +216,6 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, const std::string
     }
 
     DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
-    //DWORD flags = FOF_NOCONFIRMMKDIR;
 
     result = fo->CopyItem(itemToMove, destinationDir, NULL, NULL);
     
@@ -228,7 +237,7 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, const std::string
 bool renameFileOrDirectory(const Path& itemPath, const std::string& newName) {
     Path parentPath(itemPath.str());
     parentPath.popSegment();
-    return moveFileOrDirectory(itemPath, parentPath, newName);
+    return moveFileOrDirectory(itemPath, parentPath);
 }
 
 

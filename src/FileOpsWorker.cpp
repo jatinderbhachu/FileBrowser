@@ -26,6 +26,9 @@ void FileOpsWorker::Run() {
         FileOp fileOp;
 
         if(WorkQueue.pop(fileOp)) {
+
+            mProgressSink->currentOperationIdx = fileOp.idx;
+
             // do the file operation and register a progress sink to report progress
             switch(fileOp.opType) {
                 case FileOpType::FILE_OP_COPY: 
@@ -33,20 +36,24 @@ void FileOpsWorker::Run() {
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
                     Path toPath(fileOp.to); toPath.toAbsolute();
 
-                    FileOps::copyFileOrDirectory(fromPath, toPath, fileOp.newName, mProgressSink.get());
+                    FileOps::copyFileOrDirectory(fromPath, toPath, mProgressSink.get());
                 } break;
                 case FileOpType::FILE_OP_MOVE: 
                 {
-                    ResultQueue.push({fileOp.idx, 10, 10});
+                    Path fromPath(fileOp.from); fromPath.toAbsolute();
+                    Path toPath(fileOp.to); toPath.toAbsolute();
+
+                    FileOps::moveFileOrDirectory(fromPath, toPath, mProgressSink.get());
                 } break;
                 case FileOpType::FILE_OP_DELETE: 
                 {
-                    ResultQueue.push({fileOp.idx, 10, 10});
+                    Path fromPath(fileOp.from); fromPath.toAbsolute();
+
+                    FileOps::deleteFileOrDirectory(fromPath, false, mProgressSink.get());
                 } break;
             }
 
         } else {
-            //printf("going to slep\n");
             std::unique_lock<std::mutex> lock(wakeMutex);
             mWakeCondition.wait(lock);
         }
@@ -77,12 +84,14 @@ void FileOpsWorker::addFileOperation(FileOp newOp) {
         FileOp& op = mFileOperations[i];
         if(op.idx < 0) {
             newOp.idx = i;
-            op = newOp;
+            
             WorkQueue.push(newOp);
-            mProgressSink->currentOperationIdx = newOp.idx;
+
+            op = newOp;
             op.from = newOp.from;
             op.to = newOp.to;
-            op.newName = newOp.newName;
+
+            
             mWakeCondition.notify_all();
             return;
         }
@@ -96,12 +105,12 @@ void FileOpsWorker::syncProgress() {
     FileOpProgress result;
     while(ResultQueue.pop(result)) {
         FileOp& op = mFileOperations[result.fileOpIdx];
-        op.currentProgress = result.currentProgress;
-        op.totalProgress = result.totalProgress;
 
-
-        if(op.totalProgress > 0 && op.currentProgress == op.totalProgress) {
+        if(result.type == FILE_OP_PROGRESS_FINISH) {
             CompleteFileOperation(op);
+        } else {
+            op.currentProgress = result.currentProgress;
+            op.totalProgress = result.totalProgress;
         }
     }
 }
@@ -111,7 +120,6 @@ void FileOpsWorker::CompleteFileOperation(const FileOp& fileOp) {
 
     // just invalidate the file operation at that index
     mFileOperations[fileOp.idx].idx = -1;
-    mProgressSink->currentOperationIdx = -1;
 }
 
 

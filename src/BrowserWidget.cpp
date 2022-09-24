@@ -2,13 +2,22 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "FileOps.h"
+#include "FileOpsWorker.h"
+
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 
 
-BrowserWidget::BrowserWidget(const Path& path) 
+BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker) 
     : mDrawList(nullptr),
     mCurrentDirectory(path),
-    mUpdateFlag(true)
-{ }
+    mUpdateFlag(true),
+    mFileOpsWorker(fileOpsWorker)
+{
+    setCurrentDirectory(path);
+}
 
 void BrowserWidget::beginFrame() {
     const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
@@ -19,10 +28,11 @@ void BrowserWidget::beginFrame() {
 
 }
 
+static inline OVERLAPPED overlapped;
+
 void BrowserWidget::setCurrentDirectory(const Path& path) {
     mUpdateFlag = true;
     if(path.getType() == Path::PATH_RELATIVE) {
-
         mCurrentDirectory = path;
     }
 }
@@ -40,6 +50,7 @@ void BrowserWidget::draw() {
     auto dirSegments = mCurrentDirectory.getSegments();
 
 
+    // display current directory segments
     {
         for(int i = 0; i < dirSegments.size(); i++) {
             ImGui::PushID(i);
@@ -65,10 +76,13 @@ void BrowserWidget::draw() {
                     int numPop = dirSegments.size() - i;
                     while(--numPop > 0) targetPath.popSegment();
 
-                    printf("Drag %s onto %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
-                    bool success = FileOps::moveFileOrDirectory(sourcePath, targetPath, sourceItem.name);
-                    assert(success && "Failed to move file/directory");
-                    mUpdateFlag = true;
+                    FileOp fileOperation{};
+                    fileOperation.from = sourcePath;
+                    fileOperation.to = targetPath;
+                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                    mFileOpsWorker->addFileOperation(fileOperation);
+
+                    //mUpdateFlag = true;
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -130,12 +144,16 @@ void BrowserWidget::draw() {
     clipper.Begin(displayList.size());
 
     bool isSelectingMultiple = io.KeyCtrl;
+
+    mSelected.resize(displayList.size());
+
     while(clipper.Step()) {
         for(u32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
             const FileOps::Record& item = displayList[i];
             //ImGui::PushID(i);
 
-            bool isSelected = mSelected.count(i) > 0 ? mSelected[i] : false;
+            bool isSelected = mSelected[i];
+            
             std::string uniqueID = "##FileRecord" + std::to_string(i);
 
             ImGui::TableNextRow();
@@ -144,7 +162,7 @@ void BrowserWidget::draw() {
                 if(isSelectingMultiple) {
                     mSelected[i] = !mSelected[i];
                 } else {
-                    mSelected.clear();
+                    mSelected.assign(mSelected.size(), false);
                     mSelected[i] = true;
                 }
 
@@ -166,15 +184,15 @@ void BrowserWidget::draw() {
                 if(payload != nullptr) {
                     int sourceIndex = *(const int*) payload->Data;
                     const FileOps::Record& sourceItem = displayList[sourceIndex];
-
-
                     Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
                     Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
 
-                    printf("Drag %s onto %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
-                    bool success = FileOps::moveFileOrDirectory(sourcePath, targetPath, sourceItem.name);
-                    assert(success && "Failed to move file/directory");
-                    mUpdateFlag = true;
+                    FileOp fileOperation{};
+                    fileOperation.from = sourcePath;
+                    fileOperation.to = targetPath;
+                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                    mFileOpsWorker->addFileOperation(fileOperation);
+                    //mUpdateFlag = true;
                 }
 
                 ImGui::EndDragDropTarget();
@@ -288,13 +306,87 @@ void BrowserWidget::draw() {
 
     ImGui::EndChild();
 
+    // copy selected items to "clipboard"
+    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+        mClipboard.clear();
+        for(size_t i = 0; i < mSelected.size(); i++) {
+            if(mSelected[i]) {
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(mDisplayList[i].name);
+                mClipboard.push_back(itemPath);
+            }
+        }
+    }
+
+
+    // TODO: following copy/delete operations should be batched together
+
+    // paste items from clipboard
+    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+        for(Path itemPath : mClipboard) {
+            FileOp fileOperation{};
+            fileOperation.from = itemPath;
+            fileOperation.to = mCurrentDirectory;
+            fileOperation.opType = FileOpType::FILE_OP_COPY;
+            mFileOpsWorker->addFileOperation(fileOperation);
+        }
+    }
+
+    // delete selected
+    if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        for(size_t i = 0; i < mSelected.size(); i++) {
+            if(mSelected[i]) {
+                
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(mDisplayList[i].name);
+
+                FileOp fileOperation{};
+                fileOperation.from = itemPath;
+                fileOperation.opType = FileOpType::FILE_OP_DELETE;
+                mFileOpsWorker->addFileOperation(fileOperation);
+            }
+        }
+    }
+
+
+    // get directory change events...
+
+
+    {
+        std::wstring pathWString = mCurrentDirectory.wstr();
+        DWORD waitStatus;
+
+        waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
+
+        switch(waitStatus) {
+            case WAIT_OBJECT_0:
+                {
+                    mUpdateFlag = true;
+                    FindNextChangeNotification(mDirChangeHandle);
+                } break;
+            default:
+                {
+                } break;
+        }
+    }
+
+
     if(mUpdateFlag) {
+        //printf("Updating directory... %s\n", mCurrentDirectory.str().c_str());
         FileOps::enumerateDirectory(mCurrentDirectory, displayList);
         FileOps::sortByName(FileOps::SortDirection::Descending, displayList);
         FileOps::sortByType(FileOps::SortDirection::Ascending, displayList);
 
-        mSelected.clear();
+        mSelected.assign(mSelected.size(), false);
 
         mUpdateFlag = false;
+
+        if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
+            FindCloseChangeNotification(mDirChangeHandle);
+        }
+
+        mDirChangeHandle = FindFirstChangeNotificationW(mCurrentDirectory.wstr().data(), FALSE, 
+                FILE_NOTIFY_CHANGE_FILE_NAME
+                );
     }
 }

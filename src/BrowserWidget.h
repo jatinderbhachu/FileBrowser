@@ -13,10 +13,12 @@ namespace FileOps {
     struct Record;
 }
 
+class FileOpsWorker;
+
 class BrowserWidget
 {
 public:
-    BrowserWidget(const Path& path);
+    BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
     void beginFrame();
     void setCurrentDirectory(const Path& path);
@@ -24,10 +26,16 @@ public:
 
 private:
     ImDrawList* mDrawList;
+    FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;
+
     std::vector<FileOps::Record> mDisplayList;
-    std::unordered_map<int, bool> mSelected;
+    std::vector<bool> mSelected;
     bool mUpdateFlag;
+
+    std::vector<Path> mClipboard;
+
+    void* mDirChangeHandle = nullptr;
 
     int mYScroll;
 };

@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "ThreadedQueue.h"
+#include "Path.h"
 
 #include <thread>
 #include <string>
@@ -15,15 +16,19 @@ class FileOp {
     public:
     int idx = -1;
     FileOpType opType;
-    std::string from;
-    std::string to;
-    std::string newName;
+    Path from;
+    Path to;
     int currentProgress = 0;
     int totalProgress = INT32_MAX;
 };
 
+enum FileOpProgressType {
+    FILE_OP_PROGRESS_UPDATE,
+    FILE_OP_PROGRESS_FINISH,
+};
 
 struct FileOpProgress {
+    FileOpProgressType type;
     int fileOpIdx;
     int currentProgress;
     int totalProgress;

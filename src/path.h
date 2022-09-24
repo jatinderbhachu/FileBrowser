@@ -13,6 +13,7 @@ public:
        PATH_RELATIVE
     };
 
+    Path();
     Path(const std::string& pathStr);
     Path(const Path& other);
 

@@ -10,6 +10,10 @@ static const char SEPARATOR = '\\';
 static const std::string CURRENT_PATH = ".";
 static const std::string PARENT_PATH = "..";
 
+Path::Path()
+    : mText(".") {
+    parse();
+}
 
 Path::Path(const std::string& pathStr) 
     : mText(pathStr) {
@@ -108,7 +112,7 @@ void Path::appendName(const std::string& name) {
 }
 
 void Path::toAbsolute() {
-    assert(mType == PATH_RELATIVE);
+    if(mType == PATH_ABSOLUTE) return;
 
     Path processPath = FileOps::getCurrentProcessPath();
     std::vector<std::string_view> baseSegments = processPath.getSegments();

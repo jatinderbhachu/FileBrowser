@@ -1,5 +1,6 @@
 #include "FileOpsProgressSink.h"
 #include <combaseapi.h>
+#include <assert.h>
 
 #include <shlwapi.h>
 #include "FileOpsWorker.h"
@@ -37,9 +38,16 @@ IFACEMETHODIMP_(ULONG) FileOpProgressSink::Release()
 
 // IFileOperationProgressSink
 IFACEMETHODIMP FileOpProgressSink::StartOperations() {
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
+
+    FileOpProgress progress{};
+    progress.type = FILE_OP_PROGRESS_FINISH;
+    progress.fileOpIdx = currentOperationIdx;
+    fileOpsWorker->ResultQueue.push(progress);
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreRenameItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, PCWSTR /*pszNewName*/)
@@ -89,7 +97,10 @@ IFACEMETHODIMP FileOpProgressSink::PostNewItem(DWORD /*dwFlags*/, IShellItem * /
 }
 
 IFACEMETHODIMP FileOpProgressSink::UpdateProgress(UINT iWorkTotal, UINT iWorkSoFar) {
+    assert(currentOperationIdx >= -1);
+
     FileOpProgress progress{};
+    progress.type = FILE_OP_PROGRESS_UPDATE;
     progress.fileOpIdx = currentOperationIdx;
     progress.totalProgress = iWorkTotal;
     progress.currentProgress = iWorkSoFar;
