@@ -134,10 +134,19 @@ void BrowserWidget::draw() {
     };
 
 
-    static ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersV | ImGuiTableFlags_ContextMenuInBody | ImGuiTableFlags_Sortable;
+    static ImGuiTableFlags tableFlags = 
+        ImGuiTableFlags_SizingStretchSame 
+        | ImGuiTableFlags_Resizable 
+        | ImGuiTableFlags_NoPadInnerX
+        | ImGuiTableFlags_ContextMenuInBody 
+        | ImGuiTableFlags_Sortable;
 
     ImGui::BeginTable("BrowserWidget", 2, tableFlags);
-    ImGui::TableSetupColumn("icon");
+    int iconColumnFlags = ImGuiTableColumnFlags_NoHeaderLabel | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_IndentDisable;
+    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
+
+    ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
+    
     ImGui::TableSetupColumn("Name");
 
     ImGuiListClipper clipper;
@@ -149,16 +158,15 @@ void BrowserWidget::draw() {
 
     while(clipper.Step()) {
         for(u32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-            const FileOps::Record& item = displayList[i];
-            //ImGui::PushID(i);
-
-            bool isSelected = mSelected[i];
-            
             std::string uniqueID = "##FileRecord" + std::to_string(i);
+            ImGui::PushID(uniqueID.c_str());
+
+            const FileOps::Record& item = displayList[i];
+            bool isSelected = mSelected[i];
 
             ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            if(ImGui::Selectable(uniqueID.c_str(), isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
+            ImGui::TableNextColumn();
+            if(ImGui::Selectable("##selectable", isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
                 if(isSelectingMultiple) {
                     mSelected[i] = !mSelected[i];
                 } else {
@@ -198,15 +206,13 @@ void BrowserWidget::draw() {
                 ImGui::EndDragDropTarget();
             }
 
-            ImGui::SameLine();
+            ImGui::SameLine(0.0f, 0.0f);
             ImGui::Text(item.isFile ? " " : "[]");
-            ImGui::SameLine();
 
-            ImGui::TableSetColumnIndex(1);
+            ImGui::TableNextColumn();
             ImGui::Text(item.name.c_str());
 
-
-            //ImGui::PopID();
+            ImGui::PopID();
             /*
             ImGui::TableSetColumnIndex(2);
             for(u32 i = 0; i < FileOps::FileAttributesCount; i++) {
