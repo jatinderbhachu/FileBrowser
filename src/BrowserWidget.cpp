@@ -12,8 +12,7 @@
 inline static const char* MOVE_PAYLOAD = "MOVE_PAYLOAD";
 
 BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker) 
-    : mDrawList(nullptr),
-    mCurrentDirectory(path),
+    : mCurrentDirectory(path),
     mUpdateFlag(true),
     mFileOpsWorker(fileOpsWorker)
 {
@@ -21,12 +20,6 @@ BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker)
 }
 
 void BrowserWidget::beginFrame() {
-    const ImU32 flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
-
-    ImGui::Begin("filebrowser", NULL, flags);
-    mDrawList = ImGui::GetWindowDrawList();
-    ImGui::End();
-
 }
 
 static inline OVERLAPPED overlapped;
@@ -98,9 +91,7 @@ void BrowserWidget::draw() {
             ImGui::PopID();
         }
     }
-
-    ImGui::Separator();
-    ImGui::Separator();
+    ImGui::NewLine();
 
     // up directory button
     if(ImGui::Button("..")) {
@@ -143,12 +134,20 @@ void BrowserWidget::draw() {
         | ImGuiTableFlags_Sortable;
 
     ImGui::BeginTable("BrowserWidget", 2, tableFlags);
-    int iconColumnFlags = ImGuiTableColumnFlags_NoHeaderLabel | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_IndentDisable;
-    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
 
+
+    int iconColumnFlags = 
+        ImGuiTableColumnFlags_NoHeaderLabel 
+        | ImGuiTableColumnFlags_WidthFixed 
+        | ImGuiTableColumnFlags_NoResize 
+        | ImGuiTableColumnFlags_IndentDisable
+        | ImGuiTableColumnFlags_NoSort;
+    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
     ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
-    
-    ImGui::TableSetupColumn("Name");
+
+
+    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
+    ImGui::TableSetupColumn("Name", nameColumnFlags);
 
     ImGuiListClipper clipper;
     clipper.Begin(displayList.size());
@@ -156,6 +155,10 @@ void BrowserWidget::draw() {
     bool isSelectingMultiple = io.KeyCtrl;
 
     mSelected.resize(displayList.size());
+
+    ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+
+    ImGui::TableHeadersRow();
 
     while(clipper.Step()) {
         for(u32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
@@ -357,8 +360,6 @@ void BrowserWidget::draw() {
 
 
     // get directory change events...
-
-
     {
         std::wstring pathWString = mCurrentDirectory.wstr();
         DWORD waitStatus;
@@ -377,12 +378,26 @@ void BrowserWidget::draw() {
         }
     }
 
+    FileOps::SortDirection sortDirection = FileOps::SortDirection::Descending;
+
+    // TODO: should check which columns to sort by. For now just sort by file name
+    if(sortSpecs != nullptr) {
+        if(sortSpecs->SpecsDirty) {
+            mUpdateFlag = true;
+            sortSpecs->SpecsDirty = false;
+            if(sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
+                sortDirection = FileOps::SortDirection::Ascending;
+            } else {
+                sortDirection = FileOps::SortDirection::Descending;
+            }
+        }
+    }
 
     if(mUpdateFlag) {
         //printf("Updating directory... %s\n", mCurrentDirectory.str().c_str());
         FileOps::enumerateDirectory(mCurrentDirectory, displayList);
-        FileOps::sortByName(FileOps::SortDirection::Descending, displayList);
-        FileOps::sortByType(FileOps::SortDirection::Descending, displayList);
+        FileOps::sortByName(sortDirection, displayList);
+        FileOps::sortByType(sortDirection, displayList);
 
         mSelected.assign(mSelected.size(), false);
 

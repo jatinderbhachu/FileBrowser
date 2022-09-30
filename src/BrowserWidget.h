@@ -25,7 +25,6 @@ public:
     void draw();
 
 private:
-    ImDrawList* mDrawList;
     FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;
 

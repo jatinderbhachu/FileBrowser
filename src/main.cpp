@@ -120,8 +120,6 @@ int main() {
 
     glfwSwapInterval(1);
 
-    bool updateViewFlag = true;
-
     Path dir(DebugTestPath);
     dir.toAbsolute();
     BrowserWidget browser(dir, &fileOpsWorker);
@@ -130,31 +128,10 @@ int main() {
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
 
-        static bool CanAdd = true;
-
-        if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && CanAdd) {
-            CanAdd = false;
-            printf("Add to queue..\n");
-            FileOp op;
-            op.opType = FileOpType::FILE_OP_COPY;
-            op.from = Path("./browser_test/runtime_test/unity.mkv");
-            op.to = Path("./browser_test/runtime_test/temp");
-            fileOpsWorker.addFileOperation(op);
-        }
-
-        if(updateViewFlag) {
-            FileOps::enumerateDirectory(dir, directoryItems);
-            FileOps::sortByName(FileOps::SortDirection::Descending, directoryItems);
-            FileOps::sortByType(FileOps::SortDirection::Descending, directoryItems);
-            updateViewFlag = false;
-        }
-
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-
 
         ImGuiWindowFlags mainWindowFlags = 
             ImGuiWindowFlags_NoCollapse
