@@ -34,21 +34,22 @@ void makeSandboxFolder() {
     // a folder with 10_000 files
     std::filesystem::path testPath(DebugTestPath);
 
-    if(!std::filesystem::exists(testPath))
+    if(!std::filesystem::exists(testPath)) {
+        std::filesystem::create_directories(testPath);
         printf("Test path %s does not exist. Creating it..", testPath.string().c_str());
-    else 
-        return;
-
-    std::filesystem::create_directories(testPath);
+    }
 
     std::filesystem::path thousandFilesPath = testPath / "1k_files";
-    std::filesystem::create_directory(thousandFilesPath);
 
-    for(int i = 0; i < 1000; i++) {
-        std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
-        outputFile << ".";
-        outputFile.close();
+    if(!std::filesystem::exists(thousandFilesPath)) {
+        std::filesystem::create_directory(thousandFilesPath);
+        for(int i = 0; i < 1000; i++) {
+            std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
+            outputFile << ".";
+            outputFile.close();
+        }
     }
+
 }
 
 

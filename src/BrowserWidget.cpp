@@ -9,6 +9,7 @@
 #endif
 #include <windows.h>
 
+inline static const char* MOVE_PAYLOAD = "MOVE_PAYLOAD";
 
 BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker) 
     : mDrawList(nullptr),
@@ -65,7 +66,7 @@ void BrowserWidget::draw() {
             }
 
             if(ImGui::BeginDragDropTarget()) {
-                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEST_PAYLOAD");
+                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
                 if(payload != nullptr) {
                     int sourceIndex = *(const int*) payload->Data;
                     const FileOps::Record& sourceItem = displayList[sourceIndex];
@@ -182,13 +183,13 @@ void BrowserWidget::draw() {
             }
 
             if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                ImGui::SetDragDropPayload("TEST_PAYLOAD", &i, sizeof(int));
+                ImGui::SetDragDropPayload(MOVE_PAYLOAD, &i, sizeof(int));
 
                 ImGui::EndDragDropSource();
             }
 
             if(!item.isFile && ImGui::BeginDragDropTarget()) {
-                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEST_PAYLOAD");
+                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
                 if(payload != nullptr) {
                     int sourceIndex = *(const int*) payload->Data;
                     const FileOps::Record& sourceItem = displayList[sourceIndex];
@@ -381,7 +382,7 @@ void BrowserWidget::draw() {
         //printf("Updating directory... %s\n", mCurrentDirectory.str().c_str());
         FileOps::enumerateDirectory(mCurrentDirectory, displayList);
         FileOps::sortByName(FileOps::SortDirection::Descending, displayList);
-        FileOps::sortByType(FileOps::SortDirection::Ascending, displayList);
+        FileOps::sortByType(FileOps::SortDirection::Descending, displayList);
 
         mSelected.assign(mSelected.size(), false);
 
