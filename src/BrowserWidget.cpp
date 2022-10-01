@@ -19,9 +19,6 @@ BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker)
     setCurrentDirectory(path);
 }
 
-void BrowserWidget::beginFrame() {
-}
-
 static inline OVERLAPPED overlapped;
 
 void BrowserWidget::setCurrentDirectory(const Path& path) {
@@ -31,18 +28,38 @@ void BrowserWidget::setCurrentDirectory(const Path& path) {
     }
 }
 
-void BrowserWidget::draw() {
+bool BeginDrapDropTargetWindow(const char* payload_type)
+{
+    using namespace ImGui;
+    ImRect inner_rect = GetCurrentWindow()->InnerRect;
+    if (BeginDragDropTargetCustom(inner_rect, GetID("##WindowBgArea")))
+        if (const ImGuiPayload* payload = AcceptDragDropPayload(payload_type, ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect))
+        {
+            if (payload->IsPreview())
+            {
+                ImDrawList* draw_list = GetForegroundDrawList();
+                draw_list->AddRectFilled(inner_rect.Min, inner_rect.Max, GetColorU32(ImGuiCol_DragDropTarget, 0.05f));
+                draw_list->AddRect(inner_rect.Min, inner_rect.Max, GetColorU32(ImGuiCol_DragDropTarget), 0.0f, 0, 2.0f);
+            }
+            if (payload->IsDelivery())
+                return true;
+            EndDragDropTarget();
+        }
+    return false;
+}
+
+void BrowserWidget::draw(int id) {
     std::vector<FileOps::Record>& displayList = mDisplayList;
     ImGuiIO& io = ImGui::GetIO();
-
-    mYScroll += io.MouseWheel;
-    if(mYScroll < 0) mYScroll = 0;
-    if(mYScroll >= mDisplayList.size()) mYScroll = mDisplayList.size() - 1;
 
     const std::string& currentDirStr = mCurrentDirectory.str();
 
     auto dirSegments = mCurrentDirectory.getSegments();
 
+    std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(id));
+
+    ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
+    ImGui::Begin(widgetUniqueName.c_str(), NULL, mainWindowFlags);
 
     // display current directory segments
     {
@@ -60,7 +77,7 @@ void BrowserWidget::draw() {
 
             if(ImGui::BeginDragDropTarget()) {
                 const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
-                if(payload != nullptr) {
+                if(payload != nullptr && payload->Data != nullptr) {
                     int itemCount = payload->DataSize / sizeof(int);
 
                     for(int j = 0; j < itemCount; j++) {
@@ -69,6 +86,8 @@ void BrowserWidget::draw() {
 
                         Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory);
+
+                        //printf("Move %s to %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
 
                         int numPop = dirSegments.size() - i;
                         while(--numPop > 0) targetPath.popSegment();
@@ -92,6 +111,7 @@ void BrowserWidget::draw() {
             ImGui::PopID();
         }
     }
+
     ImGui::NewLine();
 
     // up directory button
@@ -103,6 +123,32 @@ void BrowserWidget::draw() {
     // list all the items
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
     ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags);
+
+    if(BeginDrapDropTargetWindow(MOVE_PAYLOAD)) {
+        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
+        if(payload != nullptr) {
+            void* voidPayload = nullptr;
+
+            memcpy(&voidPayload, payload->Data, payload->DataSize);
+            MovePayload* movePayload = (MovePayload*)voidPayload;
+
+            std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+
+            for(int sourceIndex : movePayload->itemsToMove) {
+                const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+
+                Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
+                Path targetPath(mCurrentDirectory);
+
+                FileOp fileOperation{};
+                fileOperation.from = sourcePath;
+                fileOperation.to = targetPath;
+                fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                mFileOpsWorker->addFileOperation(fileOperation);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
 
     static const FileOps::FileAttributes allAttribs[] = {
         FileOps::FileAttributes::ARCHIVE,
@@ -194,13 +240,18 @@ void BrowserWidget::draw() {
                 if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
                     // can only DragDrop a selected item
                     if(isSelected) {
-                        mMovePayload.clear();
+
+                        mMovePayload.itemsToMove.clear();
+                        mMovePayload.sourcePath = mCurrentDirectory;
+                        mMovePayload.sourceDisplayList = &mDisplayList;
 
                         for(int j = 0; j < mSelected.size(); j++) {
-                            if(mSelected[j]) mMovePayload.push_back(j); 
+                            if(mSelected[j]) mMovePayload.itemsToMove.push_back(j); 
                         }
-
-                        ImGui::SetDragDropPayload(MOVE_PAYLOAD, mMovePayload.data(), sizeof(int) * mMovePayload.size());
+                        
+                        size_t payloadSize = sizeof(void*);
+                        void* payloadPtr = static_cast<void*>(&mMovePayload);
+                        bool accepted = ImGui::SetDragDropPayload(MOVE_PAYLOAD, &payloadPtr, payloadSize, ImGuiCond_Once);
                     } else {
                         mSelected.assign(mSelected.size(), false);
                         mNumSelected = 0;
@@ -210,15 +261,24 @@ void BrowserWidget::draw() {
             }
 
             if(!item.isFile && ImGui::BeginDragDropTarget()) {
-                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
+                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
                 if(payload != nullptr) {
-                    int itemCount = payload->DataSize / sizeof(int);
+                    void* voidPayload = nullptr;
 
-                    for(int j = 0; j < itemCount; j++) {
-                        int sourceIndex = *((const int*) payload->Data + j);
-                        const FileOps::Record& sourceItem = displayList[sourceIndex];
-                        Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
+                    memcpy(&voidPayload, payload->Data, payload->DataSize);
+                    MovePayload* movePayload = (MovePayload*)voidPayload;
+
+
+                    std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+                    //printf("Drag drop onto window %d. Frame: %d\n", id, ImGui::GetFrameCount());
+
+                    for(int sourceIndex : movePayload->itemsToMove) {
+                        const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+
+                        Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
+
+                        //printf(" Move %s to %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
 
                         FileOp fileOperation{};
                         fileOperation.from = sourcePath;
@@ -433,4 +493,6 @@ void BrowserWidget::draw() {
                 FILE_NOTIFY_CHANGE_FILE_NAME
                 );
     }
+
+    ImGui::End();
 }

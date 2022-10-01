@@ -18,12 +18,17 @@ class FileOpsWorker;
 class BrowserWidget
 {
 
+    struct MovePayload {
+        Path sourcePath;
+        std::vector<FileOps::Record>* sourceDisplayList;
+        std::vector<int> itemsToMove;
+    };
+
 public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
-    void beginFrame();
     void setCurrentDirectory(const Path& path);
-    void draw();
+    void draw(int id);
 
 private:
     FileOpsWorker* mFileOpsWorker;
@@ -31,14 +36,12 @@ private:
 
     std::vector<FileOps::Record> mDisplayList;
     std::vector<bool> mSelected;
-    std::vector<int> mMovePayload;
     int mNumSelected = 0;
     bool mUpdateFlag;
 
     std::vector<Path> mClipboard;
+    MovePayload mMovePayload;
 
     void* mDirChangeHandle = nullptr;
-
-    int mYScroll;
 };
 

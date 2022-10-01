@@ -53,29 +53,10 @@ void makeSandboxFolder() {
 }
 
 
-
-
-
 int main() {
 
 #if 1
     makeSandboxFolder();
-
-    //Path fileToDelete(DebugTestPath);
-    //fileToDelete.appendName("unity.mkv");
-    //fileToDelete.toAbsolute();
-
-    //FileOps::deleteFileOrDirectory(fileToDelete, false);
-    //{
-        //Path fileToCopy(DebugTestPath);
-        //fileToCopy.appendName("unity.mkv");
-        //fileToCopy.toAbsolute();
-        //Path toDirectory(DebugTestPath);
-        //toDirectory.appendName("temp");
-        //toDirectory.toAbsolute();
-
-        //FileOps::copyFileOrDirectory(fileToCopy, toDirectory, "copiedFile.mkv");
-    //}
 #endif
 
     FileOpsWorker fileOpsWorker;
@@ -122,7 +103,12 @@ int main() {
 
     Path dir(DebugTestPath);
     dir.toAbsolute();
-    BrowserWidget browser(dir, &fileOpsWorker);
+
+    std::vector<BrowserWidget> browserWidgets;
+    for(int i = 0; i < 2; i++) {
+        browserWidgets.push_back(BrowserWidget(dir, &fileOpsWorker));
+    }
+    
 
     MSG msg;
     while(!glfwWindowShouldClose(window)){
@@ -134,21 +120,52 @@ int main() {
         ImGui::NewFrame();
 
         ImGuiWindowFlags mainWindowFlags = 
+            ImGuiWindowFlags_NoCollapse;
+            //| ImGuiWindowFlags_NoResize
+            //| ImGuiWindowFlags_NoMove
+            //| ImGuiWindowFlags_NoTitleBar
+            //| ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+        glfwGetWindowSize(window, &width, &height);
+
+
+
+        ImGuiWindowFlags containerWindowFlags = 
             ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoResize
             | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoTitleBar
             | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
-        glfwGetWindowSize(window, &width, &height);
+        //ImGui::ShowDemoWindow();
 
-        ImGui::SetNextWindowPos(ImVec2{0.0f, 0.0f});
-        ImGui::SetNextWindowSize(ImVec2{(float)width, (float)height});
+        //ImGui::SetNextWindowPos(ImVec2{0.0f, 0.0f});
+        //ImGui::SetNextWindowSize(ImVec2{(float)width, (float)height});
+        //ImGui::Begin("##ContainerWindow", NULL, containerWindowFlags);
 
-        ImGui::Begin("Main window", NULL, mainWindowFlags);
-        browser.beginFrame();
-        browser.draw();
-        ImGui::End();
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+
+        ImGui::Begin("DockSpace Demo", NULL, window_flags);
+
+        ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+        ImGui::PopStyleVar(3);
+        for(int i = 0; i < browserWidgets.size(); i++) {
+            browserWidgets[i].draw(i);
+        }
 
 
         ImGui::Begin("progress window");
@@ -162,6 +179,9 @@ int main() {
                 ImGui::Text("Operation %d progress %d/%d \n", op.idx, op.currentProgress, op.totalProgress);
             }
         }
+
+        ImGui::End();
+
 
         ImGui::End();
 

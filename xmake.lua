@@ -12,7 +12,7 @@ target("main")
     add_includedirs(
         "./src",
         "src/glad/include",
-        "C:/dev/libs/imgui182",
+        "third_party/imgui",
         "C:/dev/libs/glfw/include"
         )
 
@@ -33,14 +33,14 @@ target("main")
     add_files(
         "src/glad/**.c",
         "src/**.cpp",
-        "C:/dev/libs/imgui182/imgui.cpp",
-        "C:/dev/libs/imgui182/imgui_draw.cpp",
-        "C:/dev/libs/imgui182/imgui_demo.cpp",
-        "C:/dev/libs/imgui182/imgui_widgets.cpp",
-        "C:/dev/libs/imgui182/imgui_tables.cpp",
-        "C:/dev/libs/imgui182/misc/cpp/imgui_stdlib.cpp",
-        "C:/dev/libs/imgui182/backends/imgui_impl_glfw.cpp",
-        "C:/dev/libs/imgui182/backends/imgui_impl_opengl3.cpp"
+        "third_party/imgui/imgui.cpp",
+        "third_party/imgui/imgui_draw.cpp",
+        "third_party/imgui/imgui_demo.cpp",
+        "third_party/imgui/imgui_widgets.cpp",
+        "third_party/imgui/imgui_tables.cpp",
+        "third_party/imgui/misc/cpp/imgui_stdlib.cpp",
+        "third_party/imgui/backends/imgui_impl_glfw.cpp",
+        "third_party/imgui/backends/imgui_impl_opengl3.cpp"
     )
 
 target("tests")
