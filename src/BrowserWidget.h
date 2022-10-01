@@ -3,6 +3,7 @@
 #include "types.h"
 
 #include "Path.h"
+#include "SortDirection.h"
 
 #include <vector>
 #include <unordered_map>
@@ -41,6 +42,8 @@ private:
 
     std::vector<Path> mClipboard;
     MovePayload mMovePayload;
+
+    FileOps::SortDirection mSortDirection = FileOps::SortDirection::Descending;
 
     void* mDirChangeHandle = nullptr;
 };

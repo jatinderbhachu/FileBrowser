@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include "types.h"
+#include "SortDirection.h"
 
 class Path;
 class FileOpProgressSink;
@@ -11,11 +12,6 @@ namespace FileOps {
         std::string name;
         bool isFile = false;
         unsigned long attributes;
-    };
-
-    enum class SortDirection {
-        Ascending,
-        Descending
     };
 
     // https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants

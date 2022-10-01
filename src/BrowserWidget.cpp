@@ -78,16 +78,18 @@ void BrowserWidget::draw(int id) {
             if(ImGui::BeginDragDropTarget()) {
                 const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
                 if(payload != nullptr && payload->Data != nullptr) {
-                    int itemCount = payload->DataSize / sizeof(int);
+                    void* voidPayload = nullptr;
 
-                    for(int j = 0; j < itemCount; j++) {
-                        int sourceIndex = *((const int*) payload->Data + j);
-                        const FileOps::Record& sourceItem = displayList[sourceIndex];
+                    memcpy(&voidPayload, payload->Data, payload->DataSize);
+                    MovePayload* movePayload = (MovePayload*)voidPayload;
 
-                        Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
+                    std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+
+                    for(int sourceIndex : movePayload->itemsToMove) {
+                        const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+
+                        Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory);
-
-                        //printf("Move %s to %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
 
                         int numPop = dirSegments.size() - i;
                         while(--numPop > 0) targetPath.popSegment();
@@ -270,15 +272,12 @@ void BrowserWidget::draw(int id) {
 
 
                     std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
-                    //printf("Drag drop onto window %d. Frame: %d\n", id, ImGui::GetFrameCount());
 
                     for(int sourceIndex : movePayload->itemsToMove) {
                         const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
 
                         Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
-
-                        //printf(" Move %s to %s\n", sourcePath.str().c_str(), targetPath.str().c_str());
 
                         FileOp fileOperation{};
                         fileOperation.from = sourcePath;
@@ -459,26 +458,23 @@ void BrowserWidget::draw(int id) {
         }
     }
 
-    FileOps::SortDirection sortDirection = FileOps::SortDirection::Descending;
-
     // TODO: should check which columns to sort by. For now just sort by file name
     if(sortSpecs != nullptr) {
         if(sortSpecs->SpecsDirty) {
             mUpdateFlag = true;
             sortSpecs->SpecsDirty = false;
             if(sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
-                sortDirection = FileOps::SortDirection::Ascending;
+                mSortDirection = FileOps::SortDirection::Ascending;
             } else {
-                sortDirection = FileOps::SortDirection::Descending;
+                mSortDirection = FileOps::SortDirection::Descending;
             }
         }
     }
 
     if(mUpdateFlag) {
-        //printf("Updating directory... %s\n", mCurrentDirectory.str().c_str());
         FileOps::enumerateDirectory(mCurrentDirectory, displayList);
-        FileOps::sortByName(sortDirection, displayList);
-        FileOps::sortByType(sortDirection, displayList);
+        FileOps::sortByName(mSortDirection, displayList);
+        FileOps::sortByType(mSortDirection, displayList);
 
         mSelected.assign(mSelected.size(), false);
         mNumSelected = 0;
