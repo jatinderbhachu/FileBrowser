@@ -49,88 +49,12 @@ bool BeginDrapDropTargetWindow(const char* payload_type)
 }
 
 void BrowserWidget::draw(int id) {
-    std::vector<FileOps::Record>& displayList = mDisplayList;
     ImGuiIO& io = ImGui::GetIO();
-
-    const std::string& currentDirStr = mCurrentDirectory.str();
-
-    auto dirSegments = mCurrentDirectory.getSegments();
 
     std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(id));
 
     ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
     ImGui::Begin(widgetUniqueName.c_str(), NULL, mainWindowFlags);
-
-    // display current directory segments
-    {
-        for(int i = 0; i < dirSegments.size(); i++) {
-            ImGui::PushID(i);
-            std::string uniqueID = "##DirSegment" + std::to_string(i);
-            const ImVec2 text_size = ImGui::CalcTextSize(&dirSegments[i].front(), &dirSegments[i].back() + 1, false, false);
-            ImVec2 cursorPos = ImGui::GetCursorPos();
-
-            if(ImGui::Selectable(uniqueID.c_str(), false, ImGuiSelectableFlags_None | ImGuiSelectableFlags_AllowItemOverlap, text_size)) {
-                int numPop = dirSegments.size() - i;
-                while(--numPop > 0) mCurrentDirectory.popSegment();
-                mUpdateFlag = true;
-            }
-
-            if(ImGui::BeginDragDropTarget()) {
-                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
-                if(payload != nullptr && payload->Data != nullptr) {
-                    void* voidPayload = nullptr;
-
-                    memcpy(&voidPayload, payload->Data, payload->DataSize);
-                    MovePayload* movePayload = (MovePayload*)voidPayload;
-
-                    std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
-
-                    for(int sourceIndex : movePayload->itemsToMove) {
-                        const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
-
-                        Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
-                        Path targetPath(mCurrentDirectory);
-
-                        int numPop = dirSegments.size() - i;
-                        while(--numPop > 0) targetPath.popSegment();
-
-                        FileOp fileOperation{};
-                        fileOperation.from = sourcePath;
-                        fileOperation.to = targetPath;
-                        fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                        mFileOpsWorker->addFileOperation(fileOperation);
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
-
-            ImGui::SameLine();
-            ImGui::SetCursorPos({cursorPos.x, ImGui::GetCursorPos().y});
-            ImGui::TextEx(&dirSegments[i].front(), &dirSegments[i].back() + 1);
-            ImGui::SameLine();
-            ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-            ImGui::SameLine();
-            ImGui::PopID();
-        }
-    }
-
-    ImGui::NewLine();
-
-    // up directory button
-    if(ImGui::Button("..")) {
-        mCurrentDirectory.popSegment();
-        mUpdateFlag = true;
-    }
-
-    ImGui::SameLine();
-
-    if(ImGui::Button("Refresh")) {
-        mUpdateFlag = true;
-    }
-
-    // list all the items
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-    ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags);
 
     if(BeginDrapDropTargetWindow(MOVE_PAYLOAD)) {
         const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
@@ -158,6 +82,179 @@ void BrowserWidget::draw(int id) {
         ImGui::EndDragDropTarget();
     }
 
+    directorySegments();
+
+    ImGui::NewLine();
+
+    // up directory button
+    if(ImGui::Button("..")) {
+        mCurrentDirectory.popSegment();
+        mUpdateFlag = true;
+    }
+
+    ImGui::SameLine();
+
+    if(ImGui::Button("Refresh")) {
+        mUpdateFlag = true;
+    }
+
+    browserTable();
+
+    // TODO: following copy/delete operations should be batched together
+    // TODO: copy list of items to actual SYSTEM clipboard :)
+
+    // copy selected items to "clipboard"
+    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+        mClipboard.clear();
+        for(size_t i = 0; i < mSelected.size(); i++) {
+            if(mSelected[i]) {
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(mDisplayList[i].name);
+                mClipboard.push_back(itemPath);
+            }
+        }
+    }
+
+    // paste items from clipboard
+    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+        for(Path itemPath : mClipboard) {
+            FileOp fileOperation{};
+            fileOperation.from = itemPath;
+            fileOperation.to = mCurrentDirectory;
+            fileOperation.opType = FileOpType::FILE_OP_COPY;
+            mFileOpsWorker->addFileOperation(fileOperation);
+        }
+    }
+
+    // delete selected
+    if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        for(size_t i = 0; i < mSelected.size(); i++) {
+            if(mSelected[i]) {
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(mDisplayList[i].name);
+
+                FileOp fileOperation{};
+                fileOperation.from = itemPath;
+                fileOperation.opType = FileOpType::FILE_OP_DELETE;
+                mFileOpsWorker->addFileOperation(fileOperation);
+            }
+        }
+    }
+
+    // get directory change events...
+    {
+        DWORD waitStatus;
+        waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
+
+        switch(waitStatus) {
+            case WAIT_OBJECT_0:
+                {
+                    mUpdateFlag = true;
+                    FindNextChangeNotification(mDirChangeHandle);
+                } break;
+            default:
+                {
+                } break;
+        }
+    }
+
+    // TODO: should check which columns to sort by. For now just sort by file name
+    if(mTableSortSpecs != nullptr) {
+        if(mTableSortSpecs->SpecsDirty) {
+            mUpdateFlag = true;
+            mTableSortSpecs->SpecsDirty = false;
+            if(mTableSortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
+                mSortDirection = FileOps::SortDirection::Ascending;
+            } else {
+                mSortDirection = FileOps::SortDirection::Descending;
+            }
+        }
+    }
+
+    if(mUpdateFlag) {
+        FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList);
+        FileOps::sortByName(mSortDirection, mDisplayList);
+        FileOps::sortByType(mSortDirection, mDisplayList);
+
+        mSelected.assign(mSelected.size(), false);
+        mNumSelected = 0;
+
+        mUpdateFlag = false;
+
+        if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
+            FindCloseChangeNotification(mDirChangeHandle);
+        }
+
+        mDirChangeHandle = FindFirstChangeNotificationW(mCurrentDirectory.wstr().data(), FALSE, 
+                FILE_NOTIFY_CHANGE_FILE_NAME
+                );
+    }
+
+    ImGui::End();
+}
+
+void BrowserWidget::directorySegments() {
+    auto dirSegments = mCurrentDirectory.getSegments();
+
+    for(int i = 0; i < dirSegments.size(); i++) {
+        ImGui::PushID(i);
+        std::string uniqueID = "##DirSegment" + std::to_string(i);
+        const ImVec2 text_size = ImGui::CalcTextSize(&dirSegments[i].front(), &dirSegments[i].back() + 1, false, false);
+        ImVec2 cursorPos = ImGui::GetCursorPos();
+
+        if(ImGui::Selectable(uniqueID.c_str(), false, ImGuiSelectableFlags_None | ImGuiSelectableFlags_AllowItemOverlap, text_size)) {
+            int numPop = dirSegments.size() - i;
+            while(--numPop > 0) mCurrentDirectory.popSegment();
+            mUpdateFlag = true;
+        }
+
+        if(ImGui::BeginDragDropTarget()) {
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
+            if(payload != nullptr && payload->Data != nullptr) {
+                void* voidPayload = nullptr;
+
+                memcpy(&voidPayload, payload->Data, payload->DataSize);
+                MovePayload* movePayload = (MovePayload*)voidPayload;
+
+                std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+
+                for(int sourceIndex : movePayload->itemsToMove) {
+                    const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+
+                    Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
+                    Path targetPath(mCurrentDirectory);
+
+                    int numPop = dirSegments.size() - i;
+                    while(--numPop > 0) targetPath.popSegment();
+
+                    FileOp fileOperation{};
+                    fileOperation.from = sourcePath;
+                    fileOperation.to = targetPath;
+                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                    mFileOpsWorker->addFileOperation(fileOperation);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        ImGui::SameLine();
+        ImGui::SetCursorPos({cursorPos.x, ImGui::GetCursorPos().y});
+        ImGui::TextEx(&dirSegments[i].front(), &dirSegments[i].back() + 1);
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+        ImGui::PopID();
+    }
+}
+
+void BrowserWidget::browserTable() {
+    std::vector<FileOps::Record>& displayList = mDisplayList;
+    ImGuiIO& io = ImGui::GetIO();
+
+    // list all the items
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+    ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags);
+
     static const FileOps::FileAttributes allAttribs[] = {
         FileOps::FileAttributes::ARCHIVE,
         FileOps::FileAttributes::COMPRESSED,
@@ -180,7 +277,6 @@ void BrowserWidget::draw(int id) {
         FileOps::FileAttributes::VIRTUAL
     };
 
-
     static ImGuiTableFlags tableFlags = 
         ImGuiTableFlags_SizingStretchSame 
         | ImGuiTableFlags_Resizable 
@@ -190,7 +286,6 @@ void BrowserWidget::draw(int id) {
 
     ImGui::BeginTable("BrowserWidget", 2, tableFlags);
 
-
     int iconColumnFlags = 
         ImGuiTableColumnFlags_NoHeaderLabel 
         | ImGuiTableColumnFlags_WidthFixed 
@@ -199,7 +294,6 @@ void BrowserWidget::draw(int id) {
         | ImGuiTableColumnFlags_NoSort;
     ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
     ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
-
 
     int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
     ImGui::TableSetupColumn("Name", nameColumnFlags);
@@ -212,7 +306,7 @@ void BrowserWidget::draw(int id) {
 
     mSelected.resize(displayList.size());
 
-    ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+    mTableSortSpecs = ImGui::TableGetSortSpecs();
 
     ImGui::TableHeadersRow();
 
@@ -267,7 +361,6 @@ void BrowserWidget::draw(int id) {
                 if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
                     // can only DragDrop a selected item
                     if(isSelected) {
-
                         mMovePayload.itemsToMove.clear();
                         mMovePayload.sourcePath = mCurrentDirectory;
                         mMovePayload.sourceDisplayList = &mDisplayList;
@@ -421,97 +514,4 @@ void BrowserWidget::draw(int id) {
     ImGui::EndTable();
 
     ImGui::EndChild();
-
-    // copy selected items to "clipboard"
-    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
-        mClipboard.clear();
-        for(size_t i = 0; i < mSelected.size(); i++) {
-            if(mSelected[i]) {
-                Path itemPath = mCurrentDirectory;
-                itemPath.appendName(mDisplayList[i].name);
-                mClipboard.push_back(itemPath);
-            }
-        }
-    }
-
-
-    // TODO: following copy/delete operations should be batched together
-
-    // paste items from clipboard
-    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
-        for(Path itemPath : mClipboard) {
-            FileOp fileOperation{};
-            fileOperation.from = itemPath;
-            fileOperation.to = mCurrentDirectory;
-            fileOperation.opType = FileOpType::FILE_OP_COPY;
-            mFileOpsWorker->addFileOperation(fileOperation);
-        }
-    }
-
-    // delete selected
-    if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        for(size_t i = 0; i < mSelected.size(); i++) {
-            if(mSelected[i]) {
-                Path itemPath = mCurrentDirectory;
-                itemPath.appendName(mDisplayList[i].name);
-
-                FileOp fileOperation{};
-                fileOperation.from = itemPath;
-                fileOperation.opType = FileOpType::FILE_OP_DELETE;
-                mFileOpsWorker->addFileOperation(fileOperation);
-            }
-        }
-    }
-
-
-    // get directory change events...
-    {
-        DWORD waitStatus;
-        waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
-
-        switch(waitStatus) {
-            case WAIT_OBJECT_0:
-                {
-                    mUpdateFlag = true;
-                    FindNextChangeNotification(mDirChangeHandle);
-                } break;
-            default:
-                {
-                } break;
-        }
-    }
-
-    // TODO: should check which columns to sort by. For now just sort by file name
-    if(sortSpecs != nullptr) {
-        if(sortSpecs->SpecsDirty) {
-            mUpdateFlag = true;
-            sortSpecs->SpecsDirty = false;
-            if(sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
-                mSortDirection = FileOps::SortDirection::Ascending;
-            } else {
-                mSortDirection = FileOps::SortDirection::Descending;
-            }
-        }
-    }
-
-    if(mUpdateFlag) {
-        FileOps::enumerateDirectory(mCurrentDirectory, displayList);
-        FileOps::sortByName(mSortDirection, displayList);
-        FileOps::sortByType(mSortDirection, displayList);
-
-        mSelected.assign(mSelected.size(), false);
-        mNumSelected = 0;
-
-        mUpdateFlag = false;
-
-        if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
-            FindCloseChangeNotification(mDirChangeHandle);
-        }
-
-        mDirChangeHandle = FindFirstChangeNotificationW(mCurrentDirectory.wstr().data(), FALSE, 
-                FILE_NOTIFY_CHANGE_FILE_NAME
-                );
-    }
-
-    ImGui::End();
 }

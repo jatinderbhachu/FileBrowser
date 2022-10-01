@@ -16,6 +16,8 @@ namespace FileOps {
 
 class FileOpsWorker;
 
+struct ImGuiTableSortSpecs;
+
 class BrowserWidget
 {
 
@@ -32,6 +34,10 @@ public:
     void draw(int id);
 
 private:
+    
+    void directorySegments();
+    void browserTable();
+
     FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;
 
@@ -44,6 +50,7 @@ private:
     MovePayload mMovePayload;
 
     FileOps::SortDirection mSortDirection = FileOps::SortDirection::Descending;
+    ImGuiTableSortSpecs* mTableSortSpecs = nullptr;
 
     void* mDirChangeHandle = nullptr;
     int mRangeSelectionStart = -1; // the first selected item when doing shift-click selection
