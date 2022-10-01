@@ -61,26 +61,27 @@ void BrowserWidget::draw() {
             if(ImGui::BeginDragDropTarget()) {
                 const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
                 if(payload != nullptr) {
-                    int sourceIndex = *(const int*) payload->Data;
-                    const FileOps::Record& sourceItem = displayList[sourceIndex];
+                    int itemCount = payload->DataSize / sizeof(int);
 
-                    Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
-                    Path targetPath(mCurrentDirectory);
+                    for(int j = 0; j < itemCount; j++) {
+                        int sourceIndex = *((const int*) payload->Data + j);
+                        const FileOps::Record& sourceItem = displayList[sourceIndex];
 
-                    int numPop = dirSegments.size() - i;
-                    while(--numPop > 0) targetPath.popSegment();
+                        Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
+                        Path targetPath(mCurrentDirectory);
 
-                    FileOp fileOperation{};
-                    fileOperation.from = sourcePath;
-                    fileOperation.to = targetPath;
-                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                    mFileOpsWorker->addFileOperation(fileOperation);
+                        int numPop = dirSegments.size() - i;
+                        while(--numPop > 0) targetPath.popSegment();
 
-                    //mUpdateFlag = true;
+                        FileOp fileOperation{};
+                        fileOperation.from = sourcePath;
+                        fileOperation.to = targetPath;
+                        fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                        mFileOpsWorker->addFileOperation(fileOperation);
+                    }
                 }
                 ImGui::EndDragDropTarget();
             }
-
 
             ImGui::SameLine();
             ImGui::SetCursorPos({cursorPos.x, ImGui::GetCursorPos().y});
@@ -173,9 +174,11 @@ void BrowserWidget::draw() {
             if(ImGui::Selectable("##selectable", isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
                 if(isSelectingMultiple) {
                     mSelected[i] = !mSelected[i];
+                    mNumSelected++;
                 } else {
                     mSelected.assign(mSelected.size(), false);
                     mSelected[i] = true;
+                    mNumSelected = 1;
                 }
 
 
@@ -185,26 +188,45 @@ void BrowserWidget::draw() {
                 }
             }
 
-            if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                ImGui::SetDragDropPayload(MOVE_PAYLOAD, &i, sizeof(int));
+            isSelected = mSelected[i];
 
-                ImGui::EndDragDropSource();
+            if(mNumSelected > 0) {
+                if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
+                    // can only DragDrop a selected item
+                    if(isSelected) {
+                        mMovePayload.clear();
+
+                        for(int j = 0; j < mSelected.size(); j++) {
+                            if(mSelected[j]) mMovePayload.push_back(j); 
+                        }
+
+                        ImGui::SetDragDropPayload(MOVE_PAYLOAD, mMovePayload.data(), sizeof(int) * mMovePayload.size());
+                    } else {
+                        mSelected.assign(mSelected.size(), false);
+                        mNumSelected = 0;
+                    }
+                    ImGui::EndDragDropSource();
+                }
             }
 
             if(!item.isFile && ImGui::BeginDragDropTarget()) {
                 const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
                 if(payload != nullptr) {
-                    int sourceIndex = *(const int*) payload->Data;
-                    const FileOps::Record& sourceItem = displayList[sourceIndex];
-                    Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
-                    Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
+                    int itemCount = payload->DataSize / sizeof(int);
 
-                    FileOp fileOperation{};
-                    fileOperation.from = sourcePath;
-                    fileOperation.to = targetPath;
-                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                    mFileOpsWorker->addFileOperation(fileOperation);
-                    //mUpdateFlag = true;
+                    for(int j = 0; j < itemCount; j++) {
+                        int sourceIndex = *((const int*) payload->Data + j);
+                        const FileOps::Record& sourceItem = displayList[sourceIndex];
+                        Path sourcePath(mCurrentDirectory); sourcePath.appendName(sourceItem.name);
+                        Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
+
+                        FileOp fileOperation{};
+                        fileOperation.from = sourcePath;
+                        fileOperation.to = targetPath;
+                        fileOperation.opType = FileOpType::FILE_OP_MOVE;
+                        mFileOpsWorker->addFileOperation(fileOperation);
+                    }
+                    mUpdateFlag = true;
                 }
 
                 ImGui::EndDragDropTarget();
@@ -346,7 +368,6 @@ void BrowserWidget::draw() {
     if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
         for(size_t i = 0; i < mSelected.size(); i++) {
             if(mSelected[i]) {
-                
                 Path itemPath = mCurrentDirectory;
                 itemPath.appendName(mDisplayList[i].name);
 
@@ -400,6 +421,7 @@ void BrowserWidget::draw() {
         FileOps::sortByType(sortDirection, displayList);
 
         mSelected.assign(mSelected.size(), false);
+        mNumSelected = 0;
 
         mUpdateFlag = false;
 

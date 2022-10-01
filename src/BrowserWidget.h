@@ -17,6 +17,7 @@ class FileOpsWorker;
 
 class BrowserWidget
 {
+
 public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
@@ -30,6 +31,8 @@ private:
 
     std::vector<FileOps::Record> mDisplayList;
     std::vector<bool> mSelected;
+    std::vector<int> mMovePayload;
+    int mNumSelected = 0;
     bool mUpdateFlag;
 
     std::vector<Path> mClipboard;

@@ -1,9 +1,22 @@
 #include "FileOpsProgressSink.h"
 #include <combaseapi.h>
 #include <assert.h>
+#include <dmerror.h>
 
+#include <sherrors.h>
 #include <shlwapi.h>
+#include <winerror.h>
 #include "FileOpsWorker.h"
+
+
+inline static void PrintError(HRESULT hr) {
+    switch(hr) {
+        case COPYENGINE_E_FLD_IS_FILE_DEST: printf("[ERROR] Existing destination file with same name as folder\n"); break;
+        case COPYENGINE_E_FILE_IS_FLD_DEST: printf("[ERROR] Existing destination folder with same name as file\n"); break;
+        default:
+            printf("Unhandled or Unknown error.\n");
+    };
+}
 
 
 FileOpProgressSink::FileOpProgressSink() : _cRef(1)
@@ -48,14 +61,20 @@ IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
     progress.fileOpIdx = currentOperationIdx;
     fileOpsWorker->ResultQueue.push(progress);
 
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreRenameItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, PCWSTR /*pszNewName*/)
 {
     return S_OK;
 }
-IFACEMETHODIMP FileOpProgressSink::PostRenameItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, PCWSTR /*pszNewName*/, HRESULT /*hrRename*/, IShellItem * /*psiNewlyCreated*/)
+IFACEMETHODIMP FileOpProgressSink::PostRenameItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, PCWSTR /*pszNewName*/, HRESULT hr, IShellItem * /*psiNewlyCreated*/)
 {
+
+    if(!SUCCEEDED(hr)) {
+        PrintError(hr);
+    }
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreMoveItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/)
@@ -63,8 +82,12 @@ IFACEMETHODIMP FileOpProgressSink::PreMoveItem(DWORD /*dwFlags*/, IShellItem * /
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PostMoveItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/,
-        IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/, HRESULT /*hrNewName*/, IShellItem * /*psiNewlyCreated*/)
+        IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/, HRESULT hr, IShellItem * /*psiNewlyCreated*/)
 {
+    if(!SUCCEEDED(hr)) {
+        PrintError(hr);
+    }
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreCopyItem(DWORD dwFlags, IShellItem *psiItem,
@@ -73,8 +96,12 @@ IFACEMETHODIMP FileOpProgressSink::PreCopyItem(DWORD dwFlags, IShellItem *psiIte
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PostCopyItem(DWORD dwFlags, IShellItem *psiItem,
-        IShellItem *psiDestinationFolder, PCWSTR pwszNewName, HRESULT hrCopy,
+        IShellItem *psiDestinationFolder, PCWSTR pwszNewName, HRESULT hr,
         IShellItem *psiNewlyCreated) {
+
+    if(!SUCCEEDED(hr)) {
+        PrintError(hr);
+    }
 
     return S_OK;
 }
@@ -82,8 +109,12 @@ IFACEMETHODIMP FileOpProgressSink::PreDeleteItem(DWORD /*dwFlags*/, IShellItem *
 {
     return S_OK;
 }
-IFACEMETHODIMP FileOpProgressSink::PostDeleteItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, HRESULT /*hrDelete*/, IShellItem * /*psiNewlyCreated*/)
+IFACEMETHODIMP FileOpProgressSink::PostDeleteItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, HRESULT hr, IShellItem * /*psiNewlyCreated*/)
 {
+    if(!SUCCEEDED(hr)) {
+        PrintError(hr);
+    }
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreNewItem(DWORD /*dwFlags*/, IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/)
