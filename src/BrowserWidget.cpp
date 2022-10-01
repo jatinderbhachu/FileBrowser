@@ -122,6 +122,12 @@ void BrowserWidget::draw(int id) {
         mUpdateFlag = true;
     }
 
+    ImGui::SameLine();
+
+    if(ImGui::Button("Refresh")) {
+        mUpdateFlag = true;
+    }
+
     // list all the items
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
     ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags);
@@ -202,6 +208,7 @@ void BrowserWidget::draw(int id) {
     clipper.Begin(displayList.size());
 
     bool isSelectingMultiple = io.KeyCtrl;
+    bool isSelectingRange = io.KeyShift;
 
     mSelected.resize(displayList.size());
 
@@ -223,12 +230,30 @@ void BrowserWidget::draw(int id) {
                 if(isSelectingMultiple) {
                     mSelected[i] = !mSelected[i];
                     mNumSelected++;
+                    mRangeSelectionStart = i;
+                } else if(isSelectingRange) {
+                    int start, end = -1;
+
+                    if(mRangeSelectionStart > i) {
+                        start = i;
+                        end = mRangeSelectionStart + 1;
+                    } else {
+                        start = mRangeSelectionStart;
+                        end = i + 1;
+                    }
+
+                    mSelected.assign(mSelected.size(), false);
+
+                    for(int j = start; j < end; j++) {
+                        mSelected[j] = true;
+                    }
+                    mNumSelected = end - start;
                 } else {
                     mSelected.assign(mSelected.size(), false);
                     mSelected[i] = true;
                     mNumSelected = 1;
+                    mRangeSelectionStart = i;
                 }
-
 
                 if(ImGui::IsMouseDoubleClicked(0) && !item.isFile) {
                     mCurrentDirectory.appendName(item.name);
@@ -441,9 +466,7 @@ void BrowserWidget::draw(int id) {
 
     // get directory change events...
     {
-        std::wstring pathWString = mCurrentDirectory.wstr();
         DWORD waitStatus;
-
         waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
 
         switch(waitStatus) {

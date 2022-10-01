@@ -104,6 +104,7 @@ int main() {
     Path dir(DebugTestPath);
     dir.toAbsolute();
 
+
     std::vector<BrowserWidget> browserWidgets;
     for(int i = 0; i < 2; i++) {
         browserWidgets.push_back(BrowserWidget(dir, &fileOpsWorker));
@@ -119,31 +120,9 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGuiWindowFlags mainWindowFlags = 
-            ImGuiWindowFlags_NoCollapse;
-            //| ImGuiWindowFlags_NoResize
-            //| ImGuiWindowFlags_NoMove
-            //| ImGuiWindowFlags_NoTitleBar
-            //| ImGuiWindowFlags_NoBringToFrontOnFocus;
-
         glfwGetWindowSize(window, &width, &height);
 
-
-
-        ImGuiWindowFlags containerWindowFlags = 
-            ImGuiWindowFlags_NoCollapse
-            | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoTitleBar
-            | ImGuiWindowFlags_NoBringToFrontOnFocus;
-
-        //ImGui::ShowDemoWindow();
-
-        //ImGui::SetNextWindowPos(ImVec2{0.0f, 0.0f});
-        //ImGui::SetNextWindowSize(ImVec2{(float)width, (float)height});
-        //ImGui::Begin("##ContainerWindow", NULL, containerWindowFlags);
-
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags containerWindowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -152,39 +131,54 @@ int main() {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        containerWindowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        containerWindowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 
-        ImGui::Begin("DockSpace Demo", NULL, window_flags);
+        ImGui::Begin("ContainerWindow", NULL, containerWindowFlags);
 
         ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
 
         ImGui::PopStyleVar(3);
+
         for(int i = 0; i < browserWidgets.size(); i++) {
+            // pass index as unique id
             browserWidgets[i].draw(i);
         }
 
+        {
+            ImGui::Begin("File ops progress");
 
-        ImGui::Begin("progress window");
+            // consume result queue
+            fileOpsWorker.syncProgress();
 
-        // consume result queue
-        fileOpsWorker.syncProgress();
-
-        // display any in progress operations
-        for(FileOp& op : fileOpsWorker.mFileOperations) {
-            if(op.idx >= 0) {
-                ImGui::Text("Operation %d progress %d/%d \n", op.idx, op.currentProgress, op.totalProgress);
+            // display any in progress operations
+            for(FileOp& op : fileOpsWorker.mFileOperations) {
+                if(op.idx >= 0) {
+                    switch(op.opType) {
+                        case FileOpType::FILE_OP_COPY:
+                            {
+                                ImGui::Text("Copying %s to %s progress %d/%d \n", op.from.str().c_str(), op.to.str().c_str(), op.currentProgress, op.totalProgress);
+                            } break;
+                        case FileOpType::FILE_OP_MOVE:
+                            {
+                                ImGui::Text("Moving %s to %s progress %d/%d \n", op.from.str().c_str(), op.to.str().c_str(), op.currentProgress, op.totalProgress);
+                            } break;
+                        case FileOpType::FILE_OP_DELETE:
+                            {
+                                ImGui::Text("Deleting %s progress %d/%d \n", op.from.str().c_str(), op.currentProgress, op.totalProgress);
+                            } break;
+                    }
+                }
             }
+
+            ImGui::End();
         }
 
-        ImGui::End();
 
-
-        ImGui::End();
-
+        ImGui::End(); // end container
 
         ImGui::Render();
         int display_w, display_h;

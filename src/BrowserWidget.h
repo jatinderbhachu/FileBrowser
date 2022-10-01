@@ -46,5 +46,6 @@ private:
     FileOps::SortDirection mSortDirection = FileOps::SortDirection::Descending;
 
     void* mDirChangeHandle = nullptr;
+    int mRangeSelectionStart = -1; // the first selected item when doing shift-click selection
 };
 
