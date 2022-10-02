@@ -32,7 +32,7 @@ bool BeginDrapDropTargetWindow(const char* payload_type)
 {
     using namespace ImGui;
     ImRect inner_rect = GetCurrentWindow()->InnerRect;
-    if (BeginDragDropTargetCustom(inner_rect, GetID("##WindowBgArea")))
+    if (BeginDragDropTargetCustom(inner_rect, GetID("##WindowBgArea"))) {
         if (const ImGuiPayload* payload = AcceptDragDropPayload(payload_type, ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect))
         {
             if (payload->IsPreview())
@@ -43,8 +43,9 @@ bool BeginDrapDropTargetWindow(const char* payload_type)
             }
             if (payload->IsDelivery())
                 return true;
-            EndDragDropTarget();
         }
+        EndDragDropTarget();
+    }
     return false;
 }
 
@@ -251,9 +252,12 @@ void BrowserWidget::browserTable() {
     std::vector<FileOps::Record>& displayList = mDisplayList;
     ImGuiIO& io = ImGui::GetIO();
 
-    // list all the items
+    // early out if window is being clipped
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-    ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags);
+    if(!ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags)) {
+        ImGui::EndChild();
+        return;
+    }
 
     static const FileOps::FileAttributes allAttribs[] = {
         FileOps::FileAttributes::ARCHIVE,
@@ -284,7 +288,11 @@ void BrowserWidget::browserTable() {
         | ImGuiTableFlags_ContextMenuInBody 
         | ImGuiTableFlags_Sortable;
 
-    ImGui::BeginTable("BrowserWidget", 2, tableFlags);
+    // early out if table is being clipped
+    if(!ImGui::BeginTable("BrowserWidget", 2, tableFlags)) {
+        ImGui::EndTable();
+        return;
+    }
 
     int iconColumnFlags = 
         ImGuiTableColumnFlags_NoHeaderLabel 

@@ -148,6 +148,8 @@ int main() {
             browserWidgets[i].draw(i);
         }
 
+        //ImGui::ShowMetricsWindow();
+
         {
             ImGui::Begin("File ops progress");
 
