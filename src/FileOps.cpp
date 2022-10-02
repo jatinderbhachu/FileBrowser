@@ -1,5 +1,6 @@
 #include "FileOps.h"
 #include "FileOpsProgressSink.h"
+#include <fileapi.h>
 
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
@@ -21,74 +22,74 @@
 
 namespace FileOps {
 
-    inline static int GetChunk(const std::string str, int start) {
-        if(start >= str.size()) return 1;
-        char startChar = str[start];
-        int length = 1;
-        if(std::isdigit(startChar)) {
-            // move until next char or end
-            while(start++ < str.size()) {
-                if(!std::isdigit(str[start])) {
-                    break;
-                }
-                length++;
+inline static int GetChunk(const std::string str, int start) {
+    if(start >= str.size()) return 1;
+    char startChar = str[start];
+    int length = 1;
+    if(std::isdigit(startChar)) {
+        // move until next char or end
+        while(start++ < str.size()) {
+            if(!std::isdigit(str[start])) {
+                break;
             }
-        } else {
-            // move until next digit or end
-            while(start++ < str.size()) {
-                if(std::isdigit(str[start])) {
-                    break;
-                }
-                length++;
-            }
+            length++;
         }
-
-        return length;
+    } else {
+        // move until next digit or end
+        while(start++ < str.size()) {
+            if(std::isdigit(str[start])) {
+                break;
+            }
+            length++;
+        }
     }
 
-    inline static bool NaturalComparator(const std::string& lhs, const std::string& rhs) {
-        if (lhs.empty())
+    return length;
+}
+
+inline static bool NaturalComparator(const std::string& lhs, const std::string& rhs) {
+    if (lhs.empty())
+        return false;
+    if (rhs.empty())
+        return true;
+
+    int thisPos = 0;
+    int thatPos = 0;
+
+    while(thisPos < lhs.size() && thatPos < rhs.size()) {
+        int thisChunkSize = GetChunk(lhs, thisPos);
+        int thatChunkSize = GetChunk(rhs, thatPos);
+
+        if (std::isdigit(lhs[thisPos]) && !std::isdigit(rhs[thatPos])) {
             return false;
-        if (rhs.empty())
+        }
+        if (!std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
             return true;
-
-        int thisPos = 0;
-        int thatPos = 0;
-
-        while(thisPos < lhs.size() && thatPos < rhs.size()) {
-            int thisChunkSize = GetChunk(lhs, thisPos);
-            int thatChunkSize = GetChunk(rhs, thatPos);
-
-            if (std::isdigit(lhs[thisPos]) && !std::isdigit(rhs[thatPos])) {
-                return false;
-            }
-            if (!std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
-                return true;
-            }
-
-            if(std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
-                if(thisChunkSize == thatChunkSize) {
-                    for(int i = 0; i < thisChunkSize; i++) {
-                        int res = lhs[thisPos + i] - rhs[thatPos + i];
-                        if(res != 0) return res > 0;
-                    }
-                } else {
-                    return thisChunkSize > thatChunkSize;
-                }
-            } else {
-                int res = lhs.compare(thisPos, thisChunkSize, rhs, thatPos, thatChunkSize);
-                if(res != 0) return res > 0;
-            }
-
-            if (thatChunkSize == 0) return false;
-            if (thisChunkSize == 0) return true;
-
-            thisPos += thisChunkSize;
-            thatPos += thatChunkSize;
         }
 
-        return lhs.size() > rhs.size();
-    };
+        if(std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
+            if(thisChunkSize == thatChunkSize) {
+                for(int i = 0; i < thisChunkSize; i++) {
+                    int res = lhs[thisPos + i] - rhs[thatPos + i];
+                    if(res != 0) return res > 0;
+                }
+            } else {
+                return thisChunkSize > thatChunkSize;
+            }
+        } else {
+            int res = lhs.compare(thisPos, thisChunkSize, rhs, thatPos, thatChunkSize);
+            if(res != 0) return res > 0;
+        }
+
+        if (thatChunkSize == 0) return false;
+        if (thisChunkSize == 0) return true;
+
+        thisPos += thisChunkSize;
+        thatPos += thatChunkSize;
+    }
+
+    return lhs.size() > rhs.size();
+};
 
 void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
     if(direction == SortDirection::Ascending) {
@@ -104,6 +105,13 @@ void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems
     } else {
         std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile > rhs.isFile; });
     }
+}
+
+bool createDirectory(const Path& path) {
+    // returns 0 if failed.
+    int result = CreateDirectoryW(path.wstr().c_str(), nullptr);
+
+    return result != 0;
 }
 
 // path must be an absolute path
@@ -303,10 +311,44 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSin
 }
 
 
-bool renameFileOrDirectory(const Path& itemPath, const std::string& newName) {
-    Path parentPath(itemPath.str());
-    parentPath.popSegment();
-    return moveFileOrDirectory(itemPath, parentPath);
+bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, FileOpProgressSink* ps) {
+    if(!doesPathExist(itemPath)) {
+        printf("%s does not exist\n", itemPath.str().c_str());
+        return false;
+    }
+    std::wstring wItemPath(itemPath.wstr());
+
+    IShellItem* itemToRename = nullptr;
+    SHCreateItemFromParsingName(wItemPath.data(), NULL, IID_PPV_ARGS(&itemToRename));
+    
+    if(itemToRename == nullptr) {
+        printf("Failed to create shell item for source item\n");
+        return false;
+    }
+
+    IFileOperation* fo = nullptr;
+    HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
+    if(!SUCCEEDED(result)) return false;
+
+    DWORD cookie = 0;
+    if(ps != nullptr) {
+        result = fo->Advise(ps, &cookie);
+    }
+
+    DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
+
+    fo->SetOperationFlags(flags);
+    fo->RenameItem(itemToRename, newName.c_str(), NULL);
+    result = fo->PerformOperations();
+
+    if(ps != nullptr) {
+        fo->Unadvise(cookie);
+    }
+
+    if(!SUCCEEDED(result)) return false;
+    fo->Release();
+
+    return true;
 }
 
 

@@ -42,6 +42,7 @@ namespace FileOps {
     void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
     void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
+    bool createDirectory(const Path& path);
 
     Path getCurrentProcessPath();
 
@@ -49,5 +50,5 @@ namespace FileOps {
     bool deleteFileOrDirectory(const Path& itemPath, bool moveToRecycleBin, FileOpProgressSink* ps = nullptr);
     bool moveFileOrDirectory(const Path& itemPath, const Path& toDirectory, FileOpProgressSink* ps = nullptr);
     bool copyFileOrDirectory(const Path& itemPath, const Path& toDirectory, FileOpProgressSink* ps = nullptr);
-    bool renameFileOrDirectory(const Path& itemPath, const std::string& newName);
+    bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, FileOpProgressSink* ps = nullptr);
 };

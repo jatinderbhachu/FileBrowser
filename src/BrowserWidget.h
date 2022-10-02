@@ -33,6 +33,10 @@ public:
     void setCurrentDirectory(const Path& path);
     void draw(int id);
 
+    Path getCurrentDirectory() const;
+
+    void renameSelected(const std::string& from, const std::string& to);
+
 private:
     
     void directorySegments();

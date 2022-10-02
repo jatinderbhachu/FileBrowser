@@ -1,3 +1,4 @@
+#include "CommandParser.h"
 #include <mutex>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -110,6 +111,9 @@ int main() {
         browserWidgets.push_back(BrowserWidget(dir, &fileOpsWorker));
     }
     
+    bool commandPaletteOpen = false;
+    std::string commandPaletteInput = "";
+    CommandParser cmdParser;
 
     MSG msg;
     while(!glfwWindowShouldClose(window)){
@@ -146,6 +150,43 @@ int main() {
         for(int i = 0; i < browserWidgets.size(); i++) {
             // pass index as unique id
             browserWidgets[i].draw(i);
+        }
+
+        // command palette
+        {
+            if(glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS 
+                    && (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)) {
+                commandPaletteOpen = true;
+            }
+
+            int commandWindowFlags = ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoDocking
+                ;
+
+            if(commandPaletteOpen ) {
+                ImGui::SetNextWindowSize({width / 3.0f, 50.0f});
+                ImGui::SetNextWindowPos({(width / 2.0f) - (width / 6.0f), height / 5.0f});
+
+                ImGui::Begin("###CommandPalette", nullptr, commandWindowFlags);
+
+                int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue
+                    | ImGuiInputTextFlags_AutoSelectAll
+                    ;
+
+                ImGui::SetKeyboardFocusHere(0);
+                if(ImGui::InputText("###CommandPaletteInput", &commandPaletteInput, inputFlags)) {
+                    // parse input
+                    printf("Parsing command %s\n", commandPaletteInput.c_str());
+
+                    cmdParser.execute(commandPaletteInput, &browserWidgets[0]);
+
+                    commandPaletteOpen = false;
+                }
+
+                if(ImGui::IsKeyPressed(ImGuiKey_Escape)) commandPaletteOpen = false;
+                ImGui::End();
+            }
+
         }
 
         //ImGui::ShowMetricsWindow();

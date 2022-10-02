@@ -9,6 +9,7 @@
 enum FileOpType {
     FILE_OP_COPY,
     FILE_OP_MOVE,
+    FILE_OP_RENAME,
     FILE_OP_DELETE
 };
 

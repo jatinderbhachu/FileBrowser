@@ -1,6 +1,7 @@
 #include "BrowserWidget.h"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <regex>
 #include "FileOps.h"
 #include "FileOpsWorker.h"
 
@@ -26,6 +27,38 @@ void BrowserWidget::setCurrentDirectory(const Path& path) {
     if(path.getType() == Path::PATH_RELATIVE) {
         mCurrentDirectory = path;
     }
+}
+
+Path BrowserWidget::getCurrentDirectory() const {
+    return mCurrentDirectory;
+}
+
+
+void BrowserWidget::renameSelected(const std::string& from, const std::string& to) {
+    if(mNumSelected <= 0) return;
+
+    std::vector<int> itemsToRename;
+    for(int i = 0; i < mSelected.size(); i++) {
+        if(mSelected[i]) itemsToRename.push_back(i);
+    }
+
+    for(int itemToRename : itemsToRename) {
+        FileOps::Record& item = mDisplayList[itemToRename];
+
+        Path sourcePath(mCurrentDirectory);
+        sourcePath.appendName(item.name);
+
+        std::string newName = std::regex_replace( item.name, std::regex(from), to );
+        Path targetPath(newName);
+
+        FileOp fileOperation{};
+        fileOperation.from = sourcePath;
+        fileOperation.to = targetPath;
+        fileOperation.opType = FileOpType::FILE_OP_RENAME;
+        mFileOpsWorker->addFileOperation(fileOperation);
+
+    }
+
 }
 
 bool BeginDrapDropTargetWindow(const char* payload_type)
@@ -187,7 +220,7 @@ void BrowserWidget::draw(int id) {
         }
 
         mDirChangeHandle = FindFirstChangeNotificationW(mCurrentDirectory.wstr().data(), FALSE, 
-                FILE_NOTIFY_CHANGE_FILE_NAME
+                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
                 );
     }
 

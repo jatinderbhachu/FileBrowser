@@ -45,6 +45,12 @@ void FileOpsWorker::Run() {
 
                     FileOps::moveFileOrDirectory(fromPath, toPath, mProgressSink.get());
                 } break;
+                case FileOpType::FILE_OP_RENAME: 
+                {
+                    Path fromPath(fileOp.from); fromPath.toAbsolute();
+
+                    FileOps::renameFileOrDirectory(fromPath, fileOp.to.wstr(), mProgressSink.get());
+                } break;
                 case FileOpType::FILE_OP_DELETE: 
                 {
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
