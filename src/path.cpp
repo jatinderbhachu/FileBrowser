@@ -22,14 +22,16 @@ Path::Path(const std::string& pathStr)
 
 
 Path::Path(const Path& other) {
-    mSegments = other.getSegments();
     mText = other.str();
-    mType = other.getType();
+    parse();
 }
 
 
 void Path::parse() {
-    assert(!mText.empty() && "Path is empty");
+    if(mText.empty()) {
+        mType = PathType::PATH_EMPTY;
+        return;
+    }
 
     // check if string contains any forward slashes
     for(int i = 0; i < mText.size(); i++) {
@@ -58,11 +60,11 @@ void Path::parse() {
         pos++;
     }
 
-    // is absolute or relative
-    assert(mSegments.size() > 0 && "Failed to parse path");
-
-    size_t colonIndex = pathStr.find(':');
-    if(colonIndex != std::string::npos && pathStr.size() > (1+colonIndex) && pathStr[colonIndex + 1] == SEPARATOR) {
+    // idx of ":\"
+    std::string rootStr = std::string(":") + std::string(1, SEPARATOR);
+    size_t rootIdx = pathStr.find(rootStr);
+    size_t colonIdx = pathStr.find(':');
+    if(colonIdx == (pathStr.size() - 1) || rootIdx != std::string::npos) {
         mType = PATH_ABSOLUTE;
         //std::cout << mText << " Path is ABSOLUTE\n";
     } else {
@@ -86,6 +88,10 @@ void Path::popSegment() {
         //mSegments.pop_back();
         mText.erase(indexOfLast, std::string::npos);
         parse();
+    } else {
+        mSegments.clear();
+        mText = "";
+        mType = PathType::PATH_EMPTY;
     }
 }
 
@@ -107,7 +113,11 @@ void Path::appendRelative(const Path& relativePath) {
 }
 
 void Path::appendName(const std::string& name) {
-    mText += SEPARATOR + name;
+    if(mText.empty()) {
+        mText += name + SEPARATOR;
+    } else {
+        mText += SEPARATOR + name;
+    }
     parse();
 }
 
@@ -137,8 +147,19 @@ void Path::toAbsolute() {
     parse();
 }
 
+bool Path::isDriveRoot() const {
+    size_t colonIdx = mText.find(':');
+
+    // is : the last character
+    return colonIdx == (mText.size() - 1);
+}
+
 Path::PathType Path::getType() const {
     return mType;
+}
+
+bool Path::isEmpty() const {
+    return mType == PATH_EMPTY;
 }
 
 std::vector<std::string_view> Path::getSegments() const {

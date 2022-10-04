@@ -13,6 +13,7 @@ inline static void PrintError(HRESULT hr) {
     switch(hr) {
         case COPYENGINE_E_FLD_IS_FILE_DEST: printf("[ERROR] Existing destination file with same name as folder\n"); break;
         case COPYENGINE_E_FILE_IS_FLD_DEST: printf("[ERROR] Existing destination folder with same name as file\n"); break;
+        case COPYENGINE_E_SAME_FILE:        printf("[ERROR] Source and destination file are the same\n"); break;
         default:
             printf("Unhandled or Unknown error.\n");
     };
@@ -55,6 +56,7 @@ IFACEMETHODIMP FileOpProgressSink::StartOperations() {
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
+    assert(currentOperationIdx != -1);
 
     FileOpProgress progress{};
     progress.type = FILE_OP_PROGRESS_FINISH;
@@ -128,7 +130,7 @@ IFACEMETHODIMP FileOpProgressSink::PostNewItem(DWORD /*dwFlags*/, IShellItem * /
 }
 
 IFACEMETHODIMP FileOpProgressSink::UpdateProgress(UINT iWorkTotal, UINT iWorkSoFar) {
-    assert(currentOperationIdx >= -1);
+    assert(currentOperationIdx != -1);
 
     FileOpProgress progress{};
     progress.type = FILE_OP_PROGRESS_UPDATE;

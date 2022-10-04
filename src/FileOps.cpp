@@ -114,8 +114,21 @@ bool createDirectory(const Path& path) {
     return result != 0;
 }
 
+void getDriveLetters(std::vector<char> &out_driveLetters) {
+    DWORD driveBits = GetLogicalDrives();
+
+    for(int i = 0; i < 32; i++) {
+        if(driveBits & (1 << i)) {
+            out_driveLetters.push_back(static_cast<int>('A') + i);
+        }
+    }
+
+}
+
 // path must be an absolute path
 void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems) {
+    if(path.isEmpty()) return;
+
     out_DirectoryItems.clear();
 
     WIN32_FIND_DATAW findFileData;
@@ -170,10 +183,17 @@ bool doesPathExist(const Path& path) {
     return result != INVALID_FILE_ATTRIBUTES;
 }
 
+// NOTE: following operations shouldn't return false if the actual file operation failes... Error reporting is done through FileOpProgressSink
 
 bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgressSink* ps) {
+    //printf("Attempting to delete: %s\n", path.str().c_str());
     if(!doesPathExist(path)) {
         printf("Path %s does not exist.\n", path.str().c_str());
+        return false;
+    }
+
+    if(path.isDriveRoot()) {
+        printf("Cannot delete drive root .. \n");
         return false;
     }
 
@@ -200,7 +220,6 @@ bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgre
 
         return false;
     }
-    assert(fileItem != nullptr);
 
     DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION;
     if(moveToRecycleBin) {
@@ -220,12 +239,17 @@ bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgre
     return true;
 }
 
-
 bool moveFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
         return false;
     }
+
+    if(itemPath.isDriveRoot()) {
+        printf("Cannot move drive root .. \n");
+        return false;
+    }
+
     std::wstring wItemPath(itemPath.wstr());
     std::wstring wDestinationPath(to.wstr());
 
@@ -258,7 +282,6 @@ bool moveFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSin
         fo->Unadvise(cookie);
     }
 
-    if(!SUCCEEDED(result)) return false;
     fo->Release();
 
     return true;
@@ -281,8 +304,6 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSin
         return false;
     }
 
-    //FileOpProgressSink* ps = new FileOpProgressSink();
-
     IFileOperation* fo = nullptr;
     HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
     if(!SUCCEEDED(result)) return false;
@@ -299,8 +320,6 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSin
     result = fo->SetOperationFlags(flags);
     result = fo->PerformOperations();
     
-    if(!SUCCEEDED(result)) return false;
-
     if(ps != nullptr) {
         result = fo->Unadvise(cookie);
     }
@@ -310,12 +329,17 @@ bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSin
     return true;
 }
 
-
 bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, FileOpProgressSink* ps) {
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
         return false;
     }
+
+    if(itemPath.isDriveRoot()) {
+        printf("Cannot rename drive root .. \n");
+        return false;
+    }
+
     std::wstring wItemPath(itemPath.wstr());
 
     IShellItem* itemToRename = nullptr;
@@ -345,11 +369,9 @@ bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, Fi
         fo->Unadvise(cookie);
     }
 
-    if(!SUCCEEDED(result)) return false;
     fo->Release();
 
     return true;
 }
-
 
 }

@@ -13,11 +13,11 @@
 void FileOpsWorker::Run() {
     HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if(hr != S_OK) {
-        printf("Failed to initialize COM library\n");
+        assert(false && "Failed to initialize COM library\n");
         return;
     }
 
-    mFileOperations.resize(MAX_FILE_OPS);
+    mFileOperations.resize(64);
 
     std::mutex wakeMutex;
     printf("Starting worker thread..\n");
@@ -34,29 +34,68 @@ void FileOpsWorker::Run() {
             switch(fileOp.opType) {
                 case FileOpType::FILE_OP_COPY: 
                 {
+                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
                     Path toPath(fileOp.to); toPath.toAbsolute();
 
-                    FileOps::copyFileOrDirectory(fromPath, toPath, mProgressSink.get());
+                    if(!FileOps::copyFileOrDirectory(fromPath, toPath, mProgressSink.get())) {
+                        FileOpProgress progress;
+                        progress.fileOpIdx = fileOp.idx;
+                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
+                        progress.currentProgress = 1;
+                        progress.totalProgress = 1;
+
+                        ResultQueue.push(progress);
+                    }
                 } break;
                 case FileOpType::FILE_OP_MOVE: 
                 {
+                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
+                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
                     Path toPath(fileOp.to); toPath.toAbsolute();
 
-                    FileOps::moveFileOrDirectory(fromPath, toPath, mProgressSink.get());
+                    if(!FileOps::moveFileOrDirectory(fromPath, toPath, mProgressSink.get())) {
+                        FileOpProgress progress;
+                        progress.fileOpIdx = fileOp.idx;
+                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
+                        progress.currentProgress = 1;
+                        progress.totalProgress = 1;
+
+                        ResultQueue.push(progress);
+                    }
                 } break;
                 case FileOpType::FILE_OP_RENAME: 
                 {
+                    assert(!fileOp.from.isEmpty());
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
 
-                    FileOps::renameFileOrDirectory(fromPath, fileOp.to.wstr(), mProgressSink.get());
+                    if(!FileOps::renameFileOrDirectory(fromPath, fileOp.to.wstr(), mProgressSink.get())) {
+                        FileOpProgress progress;
+                        progress.fileOpIdx = fileOp.idx;
+                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
+                        progress.currentProgress = 1;
+                        progress.totalProgress = 1;
+
+                        ResultQueue.push(progress);
+                    }
+
                 } break;
                 case FileOpType::FILE_OP_DELETE: 
                 {
+                    assert(!fileOp.from.isEmpty());
                     Path fromPath(fileOp.from); fromPath.toAbsolute();
 
-                    FileOps::deleteFileOrDirectory(fromPath, false, mProgressSink.get());
+                    if(!FileOps::deleteFileOrDirectory(fromPath, true, mProgressSink.get())) {
+                        FileOpProgress progress;
+                        progress.fileOpIdx = fileOp.idx;
+                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
+                        progress.currentProgress = 1;
+                        progress.totalProgress = 1;
+
+                        ResultQueue.push(progress);
+                    }
+                    
                 } break;
             }
 
@@ -87,25 +126,33 @@ FileOpsWorker::~FileOpsWorker() {
 }
 
 void FileOpsWorker::addFileOperation(FileOp newOp) {
+
+    // check if there is an open spot to add the file operation
+    int newOpIdx = -1;
     for (int i = 0; i < mFileOperations.size(); i++) {
-        FileOp& op = mFileOperations[i];
-        if(op.idx < 0) {
-            newOp.idx = i;
-            
-            WorkQueue.push(newOp);
-
-            op = newOp;
-            op.from = newOp.from;
-            op.to = newOp.to;
-
-            
-            mWakeCondition.notify_all();
-            return;
+        if(mFileOperations[i].idx < 0) {
+            newOpIdx = i;
+            break;
         }
     }
 
-    // shouldn't reach this point
-    assert(false && "Failed to queue up file operation");
+    // allocate new index if there is no open spot
+    if(newOpIdx < 0) {
+        mFileOperations.push_back(FileOp());
+        newOpIdx = mFileOperations.size() - 1;
+    }
+
+    FileOp& op = mFileOperations[newOpIdx];
+    newOp.idx = newOpIdx;
+
+    WorkQueue.push(newOp);
+
+    op = newOp;
+    op.from = newOp.from;
+    op.to = newOp.to;
+
+    mWakeCondition.notify_all();
+    return;
 }
 
 void FileOpsWorker::syncProgress() {
@@ -119,6 +166,7 @@ void FileOpsWorker::syncProgress() {
             op.currentProgress = result.currentProgress;
             op.totalProgress = result.totalProgress;
         }
+ 
     }
 }
 

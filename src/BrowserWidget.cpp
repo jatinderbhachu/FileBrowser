@@ -58,7 +58,6 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         fileOperation.to = targetPath;
         fileOperation.opType = FileOpType::FILE_OP_RENAME;
         mFileOpsWorker->addFileOperation(fileOperation);
-
     }
 
 }
@@ -110,6 +109,8 @@ void BrowserWidget::draw(int id, bool& isFocused) {
                 Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                 Path targetPath(mCurrentDirectory);
 
+                if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
+
                 FileOp fileOperation{};
                 fileOperation.from = sourcePath;
                 fileOperation.to = targetPath;
@@ -136,7 +137,11 @@ void BrowserWidget::draw(int id, bool& isFocused) {
         mUpdateFlag = true;
     }
 
-    browserTable();
+    if(!mCurrentDirectory.isEmpty()) {
+        directoryTable();
+    } else {
+        driveList();
+    }
 
     // TODO: following copy/delete operations should be batched together
     // TODO: copy list of items to actual SYSTEM clipboard :)
@@ -210,14 +215,28 @@ void BrowserWidget::draw(int id, bool& isFocused) {
     }
 
     if(mUpdateFlag) {
-        FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList);
+        mUpdateFlag = false;
+        if(mCurrentDirectory.isEmpty()) {
+            std::vector<char> driveLetters;
+            FileOps::getDriveLetters(driveLetters);
+            mDriveList.clear();
+            for(char driveLetter : driveLetters) {
+                DriveRecord driveRecord{};
+                driveRecord.letter = driveLetter;
+
+                // TODO: get the actual drive name
+                driveRecord.name = std::string(1, driveLetter);
+                
+                mDriveList.push_back(driveRecord);
+            }
+        } else {
+            FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList);
+        }
         FileOps::sortByName(mSortDirection, mDisplayList);
         FileOps::sortByType(mSortDirection, mDisplayList);
 
         mSelected.assign(mSelected.size(), false);
         mNumSelected = 0;
-
-        mUpdateFlag = false;
 
         if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
             FindCloseChangeNotification(mDirChangeHandle);
@@ -232,7 +251,22 @@ void BrowserWidget::draw(int id, bool& isFocused) {
 }
 
 void BrowserWidget::directorySegments() {
-    auto dirSegments = mCurrentDirectory.getSegments();
+    std::string uniqueID = "This PC###ThisPCSegment";
+    const ImVec2 text_size = ImGui::CalcTextSize("This PC", false, false);
+    ImVec2 cursorPos = ImGui::GetCursorPos();
+
+    if(ImGui::Selectable(uniqueID.c_str(), false, ImGuiSelectableFlags_None | ImGuiSelectableFlags_AllowItemOverlap, text_size)) {
+        while(!mCurrentDirectory.isEmpty()) 
+            mCurrentDirectory.popSegment();
+
+        mUpdateFlag = true;
+    }
+
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    ImGui::SameLine();
+
+    std::vector<std::string_view> dirSegments = mCurrentDirectory.getSegments();
 
     for(int i = 0; i < dirSegments.size(); i++) {
         ImGui::PushID(i);
@@ -265,6 +299,8 @@ void BrowserWidget::directorySegments() {
                     int numPop = dirSegments.size() - i;
                     while(--numPop > 0) targetPath.popSegment();
 
+                    if(!(sourcePath.isEmpty() && targetPath.isEmpty())) continue;
+
                     FileOp fileOperation{};
                     fileOperation.from = sourcePath;
                     fileOperation.to = targetPath;
@@ -285,7 +321,7 @@ void BrowserWidget::directorySegments() {
     }
 }
 
-void BrowserWidget::browserTable() {
+void BrowserWidget::directoryTable() {
     std::vector<FileOps::Record>& displayList = mDisplayList;
     ImGuiIO& io = ImGui::GetIO();
 
@@ -326,7 +362,7 @@ void BrowserWidget::browserTable() {
         | ImGuiTableFlags_Sortable;
 
     // early out if table is being clipped
-    if(!ImGui::BeginTable("BrowserWidget", 2, tableFlags)) {
+    if(!ImGui::BeginTable("DirectoryList", 2, tableFlags)) {
         ImGui::EndTable();
         return;
     }
@@ -348,6 +384,12 @@ void BrowserWidget::browserTable() {
 
     bool isSelectingMultiple = io.KeyCtrl;
     bool isSelectingRange = io.KeyShift;
+    bool isClearingSelection = ImGui::IsKeyPressed(ImGuiKey_Escape);
+
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && isClearingSelection) {
+        mSelected.assign(mSelected.size(), false);
+        mNumSelected = 0;
+    }
 
     mSelected.resize(displayList.size());
 
@@ -441,6 +483,8 @@ void BrowserWidget::browserTable() {
 
                         Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
+
+                        if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
 
                         FileOp fileOperation{};
                         fileOperation.from = sourcePath;
@@ -566,4 +610,85 @@ void BrowserWidget::browserTable() {
     ImGui::EndTable();
 
     ImGui::EndChild();
+}
+
+void BrowserWidget::driveList() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    // early out if window is being clipped
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+    if(!ImGui::BeginChild("DirectoryView", ImGui::GetContentRegionAvail(), false, window_flags)) {
+        ImGui::EndChild();
+        return;
+    }
+
+
+    static ImGuiTableFlags tableFlags = 
+        ImGuiTableFlags_SizingStretchSame 
+        | ImGuiTableFlags_Resizable 
+        | ImGuiTableFlags_NoPadInnerX
+        | ImGuiTableFlags_ContextMenuInBody 
+        | ImGuiTableFlags_Sortable;
+
+    // early out if table is being clipped
+    if(!ImGui::BeginTable("DriveList", 2, tableFlags)) {
+        ImGui::EndTable();
+        return;
+    }
+
+    int iconColumnFlags = 
+        ImGuiTableColumnFlags_NoHeaderLabel 
+        | ImGuiTableColumnFlags_WidthFixed 
+        | ImGuiTableColumnFlags_NoResize 
+        | ImGuiTableColumnFlags_IndentDisable
+        | ImGuiTableColumnFlags_NoSort;
+    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
+    ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
+
+    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
+    ImGui::TableSetupColumn("Name", nameColumnFlags);
+
+    ImGuiListClipper clipper;
+    clipper.Begin(mDriveList.size());
+
+    mSelected.resize(mDriveList.size());
+
+    mTableSortSpecs = ImGui::TableGetSortSpecs();
+
+    ImGui::TableHeadersRow();
+
+    while(clipper.Step()) {
+        for(u32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+            std::string uniqueID = "##DriveRecord" + std::to_string(i);
+            ImGui::PushID(uniqueID.c_str());
+
+            const DriveRecord& item = mDriveList[i];
+            bool isSelected = mSelected[i];
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            if(ImGui::Selectable("##selectable", isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
+                if(ImGui::IsMouseDoubleClicked(0)) {
+                    mCurrentDirectory.appendName(std::string(1, item.letter) + ":");
+                    mUpdateFlag = true;
+                }
+            }
+
+            ImGui::SameLine(0.0f, 0.0f);
+
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(222, 199, 53, 255));
+            ImGui::Text(ICON_FK_CIRCLE_O_NOTCH);
+            ImGui::PopStyleColor();
+
+            ImGui::TableNextColumn();
+            ImGui::Text(item.name.c_str());
+
+            ImGui::PopID();
+        }
+    }
+
+    ImGui::EndTable();
+
+    ImGui::EndChild();
+    
 }

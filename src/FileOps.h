@@ -44,6 +44,8 @@ namespace FileOps {
     void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     bool createDirectory(const Path& path);
 
+    void getDriveLetters(std::vector<char>& out_driveLetters);
+
     Path getCurrentProcessPath();
 
     bool doesPathExist(const Path& path);

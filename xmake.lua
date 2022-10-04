@@ -8,7 +8,7 @@ target("main")
     set_languages("c++17")
     set_kind("binary")
 
-    add_linkdirs("C:/dev/libs/glfw/libs/src/Release")
+    add_linkdirs("C:/dev/libs/glfw/build/src/Release")
     add_includedirs(
         "./src",
         "src/glad/include",

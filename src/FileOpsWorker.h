@@ -38,7 +38,6 @@ struct FileOpProgress {
 class FileOpProgressSink;
 
 class FileOpsWorker {
-    static constexpr int MAX_FILE_OPS = 64;
 public:
     FileOpsWorker();
     ~FileOpsWorker();

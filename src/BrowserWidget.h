@@ -27,6 +27,11 @@ class BrowserWidget
         std::vector<int> itemsToMove;
     };
 
+    struct DriveRecord {
+        std::string name;
+        char letter;
+    };
+
 public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
@@ -40,15 +45,19 @@ public:
 private:
     
     void directorySegments();
-    void browserTable();
+    void directoryTable();
+    void driveList();
 
     FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;
 
     std::vector<FileOps::Record> mDisplayList;
+    
+    std::vector<DriveRecord> mDriveList;
+
     std::vector<bool> mSelected;
     int mNumSelected = 0;
-    bool mUpdateFlag;
+    bool mUpdateFlag = true;
 
     std::vector<Path> mClipboard;
     MovePayload mMovePayload;

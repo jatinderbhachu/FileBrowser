@@ -61,6 +61,15 @@ int main() {
     io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FK, 16.0f, &iconsConfig, iconsRanges);
 
 
+    std::vector<FileOps::Record> out_DirectoryItems;
+    Path emptyDir("");
+    FileOps::enumerateDirectory(emptyDir, out_DirectoryItems);
+
+    for(FileOps::Record record : out_DirectoryItems) {
+        printf(": %s\n", record.name.c_str());
+    }
+
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 

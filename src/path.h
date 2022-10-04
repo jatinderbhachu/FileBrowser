@@ -10,7 +10,8 @@ class Path
 public:
     enum PathType {
        PATH_ABSOLUTE,
-       PATH_RELATIVE
+       PATH_RELATIVE,
+       PATH_EMPTY,
     };
 
     Path();
@@ -19,7 +20,6 @@ public:
 
     const std::string& str() const;
     std::wstring wstr() const;
-
 
     void popSegment();
     void appendRelative(const Path&);
@@ -30,7 +30,10 @@ public:
     bool hasFileExtension();
     std::string getFileExtension();
 
+    bool isDriveRoot() const;
+
     PathType getType() const;
+    bool isEmpty() const;
 
     std::vector<std::string_view> getSegments() const;
 private:
