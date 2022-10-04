@@ -6,6 +6,7 @@
 enum class CommandType {
     REPLACE = 0,
     MKDIR,
+    MAKE_DEBUG_DIR,
     UNKNOWN,
 };
 

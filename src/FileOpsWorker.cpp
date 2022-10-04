@@ -22,6 +22,7 @@ void FileOpsWorker::Run() {
     std::mutex wakeMutex;
     printf("Starting worker thread..\n");
 
+    std::vector<FileOp> fileOpsBatch;
     while(mAlive.load()) {
         FileOp fileOp;
 

@@ -82,13 +82,15 @@ bool BeginDrapDropTargetWindow(const char* payload_type)
     return false;
 }
 
-void BrowserWidget::draw(int id) {
+void BrowserWidget::draw(int id, bool& isFocused) {
     ImGuiIO& io = ImGui::GetIO();
 
     std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(id));
 
     ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
     ImGui::Begin(widgetUniqueName.c_str(), NULL, mainWindowFlags);
+
+    isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
     if(BeginDrapDropTargetWindow(MOVE_PAYLOAD)) {
         const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);

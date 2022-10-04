@@ -22,44 +22,14 @@
 #include <codecvt>
 #include <string.h>
 #include <unordered_map>
-#include <filesystem>
-#include <fstream>
 #include <memory.h>
 #include "FileOpsWorker.h"
 
 
 static const char* DebugTestPath = "./browser_test/runtime_test";
 
-void makeSandboxFolder() {
-    // c:/browser_test
-    // a folder with 10_000 files
-    std::filesystem::path testPath(DebugTestPath);
-
-    if(!std::filesystem::exists(testPath)) {
-        std::filesystem::create_directories(testPath);
-        printf("Test path %s does not exist. Creating it..", testPath.string().c_str());
-    }
-
-    std::filesystem::path thousandFilesPath = testPath / "1k_files";
-
-    if(!std::filesystem::exists(thousandFilesPath)) {
-        std::filesystem::create_directory(thousandFilesPath);
-        for(int i = 0; i < 1000; i++) {
-            std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
-            outputFile << ".";
-            outputFile.close();
-        }
-    }
-
-}
-
 
 int main() {
-
-#if 1
-    makeSandboxFolder();
-#endif
-
     FileOpsWorker fileOpsWorker;
 
     int width = 1280;
@@ -115,6 +85,8 @@ int main() {
     std::string commandPaletteInput = "";
     CommandParser cmdParser;
 
+    int currentFocusedWidget = -1;
+
     MSG msg;
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
@@ -137,7 +109,7 @@ int main() {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         containerWindowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
         containerWindowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
+        containerWindowFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
         ImGui::Begin("ContainerWindow", NULL, containerWindowFlags);
 
@@ -147,9 +119,11 @@ int main() {
 
         ImGui::PopStyleVar(3);
 
+        bool isWindowFocused = false;
         for(int i = 0; i < browserWidgets.size(); i++) {
             // pass index as unique id
-            browserWidgets[i].draw(i);
+            browserWidgets[i].draw(i, isWindowFocused);
+            if(isWindowFocused) currentFocusedWidget = i;
         }
 
         // command palette
@@ -163,7 +137,7 @@ int main() {
                 | ImGuiWindowFlags_NoDocking
                 ;
 
-            if(commandPaletteOpen ) {
+            if(commandPaletteOpen) {
                 ImGui::SetNextWindowSize({width / 3.0f, 50.0f});
                 ImGui::SetNextWindowPos({(width / 2.0f) - (width / 6.0f), height / 5.0f});
 
@@ -173,12 +147,13 @@ int main() {
                     | ImGuiInputTextFlags_AutoSelectAll
                     ;
 
+                ImGui::SetNextItemWidth(-1.0f);
                 ImGui::SetKeyboardFocusHere(0);
-                if(ImGui::InputText("###CommandPaletteInput", &commandPaletteInput, inputFlags)) {
+                if(ImGui::InputText("###CommandPaletteInput", &commandPaletteInput, inputFlags) && currentFocusedWidget != -1) {
                     // parse input
                     printf("Parsing command %s\n", commandPaletteInput.c_str());
 
-                    cmdParser.execute(commandPaletteInput, &browserWidgets[0]);
+                    cmdParser.execute(commandPaletteInput, &browserWidgets[currentFocusedWidget]);
 
                     commandPaletteOpen = false;
                 }
@@ -186,7 +161,6 @@ int main() {
                 if(ImGui::IsKeyPressed(ImGuiKey_Escape)) commandPaletteOpen = false;
                 ImGui::End();
             }
-
         }
 
         //ImGui::ShowMetricsWindow();

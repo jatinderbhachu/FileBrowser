@@ -31,7 +31,7 @@ public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
     void setCurrentDirectory(const Path& path);
-    void draw(int id);
+    void draw(int id, bool& isFocused);
 
     Path getCurrentDirectory() const;
 

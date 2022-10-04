@@ -3,6 +3,10 @@
 #include "FileOps.h"
 #include <sstream>
 #include <unordered_map>
+#include <assert.h>
+
+#include <filesystem>
+#include <fstream>
 
 CommandParser::CommandParser()
 {
@@ -15,12 +19,14 @@ CommandParser::~CommandParser()
 inline static const std::unordered_map<CommandType, std::string_view> CommandToStrMap({
         {CommandType::REPLACE, "replace"},
         {CommandType::MKDIR, "mkdir"},
-        });
+        {CommandType::MAKE_DEBUG_DIR, "make_debug_dir"},
+    });
 
 inline static const std::unordered_map<std::string_view, CommandType> StrToCommandMap({
         {"replace", CommandType::REPLACE},
         {"mkdir", CommandType::MKDIR},
-        });
+        {"make_debug_dir", CommandType::MAKE_DEBUG_DIR},
+    });
 
 std::string_view CommandParser::CommandTypeToStr(CommandType cmd) {
     return CommandToStrMap.count(cmd) > 0 ? CommandToStrMap.at(cmd)
@@ -33,6 +39,7 @@ CommandType CommandParser::StrToCommandType(std::string_view str) {
 }
 
 void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidget) {
+    assert(focusedWidget != nullptr);
     Command cmd = parse(input);
 
     switch(cmd.type) {
@@ -56,6 +63,35 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
 
                 bool success = FileOps::createDirectory(dir);
             } break;
+        case CommandType::MAKE_DEBUG_DIR:
+            {
+                printf("[CMD] making debug directory\n");
+
+                Path currentDirectory = focusedWidget->getCurrentDirectory();
+
+                currentDirectory.appendName("browser_test");
+
+                // TODO: replace with functions from FileOps::
+
+                // a folder with 1000 files
+                std::filesystem::path testPath(currentDirectory.str());
+
+                if(!std::filesystem::exists(testPath)) {
+                    std::filesystem::create_directories(testPath);
+                }
+
+                std::filesystem::path thousandFilesPath = testPath / "1k_files";
+
+                if(!std::filesystem::exists(thousandFilesPath)) {
+                    std::filesystem::create_directory(thousandFilesPath);
+                    for(int i = 0; i < 1000; i++) {
+                        std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
+                        outputFile << ".";
+                        outputFile.close();
+                    }
+                }
+
+            } break;
         case CommandType::UNKNOWN:
             {
                 printf("[CMD] UNKNOWN_CMD... \n");
@@ -72,19 +108,20 @@ Command CommandParser::parse(std::string_view input) {
     while(input[start] == ' ') { start++; } // eat spaces
 
     int end = start;
-    while(input[end] != ' ' && end < input.size()) { end++; } // find next space
+    while(end < input.size() && input[end] != ' ') { end++; } // find next space
 
     result.type = StrToCommandType(input.substr(start, end - start));
 
-    std::string_view args = input.substr(end + 1);
-
-
-    parseArguments(result, args);
+    std::string_view args;
+    if(end < input.size()) {
+        args = input.substr(end + 1);
+        parseArguments(result, args);
+    }
 
     return result;
 }
 
-void split(std::string_view input, char delim, std::vector<std::string>& out_tokens) {
+inline static void split(std::string_view input, char delim, std::vector<std::string>& out_tokens) {
     int start = 0;
     int end = 0;
     while(end < input.size()) {
