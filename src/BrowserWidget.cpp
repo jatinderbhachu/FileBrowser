@@ -59,7 +59,6 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         fileOperation.opType = FileOpType::FILE_OP_RENAME;
         mFileOpsWorker->addFileOperation(fileOperation);
     }
-
 }
 
 bool BeginDrapDropTargetWindow(const char* payload_type)
@@ -436,9 +435,15 @@ void BrowserWidget::directoryTable() {
                     mRangeSelectionStart = i;
                 }
 
-                if(ImGui::IsMouseDoubleClicked(0) && !item.isFile) {
-                    mCurrentDirectory.appendName(item.name);
-                    mUpdateFlag = true;
+                if(ImGui::IsMouseDoubleClicked(0)) {
+                    if(item.isFile) {
+                        Path filePath = mCurrentDirectory;
+                        filePath.appendName(item.name);
+                        FileOps::openFile(filePath);
+                    } else {
+                        mCurrentDirectory.appendName(item.name);
+                        mUpdateFlag = true;
+                    }
                 }
             }
 
@@ -690,5 +695,5 @@ void BrowserWidget::driveList() {
     ImGui::EndTable();
 
     ImGui::EndChild();
-    
 }
+

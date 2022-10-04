@@ -46,6 +46,7 @@ namespace FileOps {
 
     void getDriveLetters(std::vector<char>& out_driveLetters);
 
+    void openFile(const Path& filePath);
     Path getCurrentProcessPath();
 
     bool doesPathExist(const Path& path);

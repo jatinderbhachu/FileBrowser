@@ -122,7 +122,11 @@ void getDriveLetters(std::vector<char> &out_driveLetters) {
             out_driveLetters.push_back(static_cast<int>('A') + i);
         }
     }
+}
 
+
+void openFile(const Path& path) {
+    ShellExecuteW(0, 0, path.wstr().c_str(), 0, 0, SW_SHOW);
 }
 
 // path must be an absolute path
