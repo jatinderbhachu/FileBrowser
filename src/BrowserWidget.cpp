@@ -1,6 +1,7 @@
 #include "BrowserWidget.h"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 #include <regex>
 #include "FileOps.h"
 #include "FileOpsWorker.h"
@@ -61,8 +62,7 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
     }
 }
 
-bool BeginDrapDropTargetWindow(const char* payload_type)
-{
+bool BeginDrapDropTargetWindow(const char* payload_type) {
     using namespace ImGui;
     ImRect inner_rect = GetCurrentWindow()->InnerRect;
     if (BeginDragDropTargetCustom(inner_rect, GetID("##WindowBgArea"))) {
@@ -91,6 +91,70 @@ void BrowserWidget::draw(int id, bool& isFocused) {
     ImGui::Begin(widgetUniqueName.c_str(), NULL, mainWindowFlags);
 
     isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+    if(ImGui::IsKeyPressed(ImGuiKey_Slash) && !mSearchWindowOpen && isFocused) {
+        // show a search window
+        mSearchWindowOpen = true;
+    }
+    int searchWindowFlags = ImGuiWindowFlags_NoDecoration
+        | ImGuiWindowFlags_NoDocking
+        ;
+
+    if(mSearchWindowOpen) {
+        float width = ImGui::GetWindowWidth();
+        float height = ImGui::GetWindowHeight();
+
+        ImGui::SetNextWindowSize({width / 3.0f, 50.0f});
+        ImGui::SetNextWindowPos({(width / 2.0f) - (width / 6.0f), height / 5.0f});
+
+        ImGui::Begin("###SearchWindow", nullptr, searchWindowFlags);
+
+        int inputFlags = ImGuiInputTextFlags_AutoSelectAll;
+
+        ImGui::SetNextItemWidth(-1.0f);
+        ImGui::SetKeyboardFocusHere(0);
+        if(ImGui::InputText("###SearchInput", &mSearchFilter, inputFlags) && !mSearchFilter.empty()) {
+            mHighlighted.assign(mHighlighted.size(), false);
+            mCurrentHighlightIdx = -1;
+            for(int i = 0; i < mDisplayList.size(); i++) {
+                FileOps::Record& item = mDisplayList[i];
+                if(item.name.find(mSearchFilter) != std::string::npos) {
+                    if(mCurrentHighlightIdx < 0) mCurrentHighlightIdx = i;
+                    mHighlighted[i] = true;
+                }
+            }
+            mHighlightNextItem = true;
+        }
+
+        if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if(mSearchFilter.empty()) {
+                mHighlighted.assign(mHighlighted.size(), false);
+                mCurrentHighlightIdx = -1;
+            }
+            mSearchWindowOpen = false;
+        } 
+        ImGui::End();
+    }
+
+    if(mCurrentHighlightIdx >= 0 && ImGui::IsKeyPressed(ImGuiKey_N)) {
+        int start = mCurrentHighlightIdx + 1;
+        int end = mHighlighted.size();
+        int diff = 1;
+
+        if(ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
+            start = mCurrentHighlightIdx - 1;
+            end = 0;
+            diff = -1;
+        }
+
+        for(int i = start; i != end; i += diff) {
+            if(mHighlighted[i]) {
+                mCurrentHighlightIdx = i;
+                break;
+            }
+        }
+        mHighlightNextItem = true;
+    }
 
     if(BeginDrapDropTargetWindow(MOVE_PAYLOAD)) {
         const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
@@ -235,6 +299,10 @@ void BrowserWidget::draw(int id, bool& isFocused) {
         mSelected.assign(mSelected.size(), false);
         mNumSelected = 0;
 
+        mHighlighted.assign(mHighlighted.size(), false);
+        mCurrentHighlightIdx = -1;
+
+
         if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
             FindCloseChangeNotification(mDirChangeHandle);
         }
@@ -333,6 +401,10 @@ void BrowserWidget::directorySegments() {
 
 void BrowserWidget::directoryTable() {
     std::vector<FileOps::Record>& displayList = mDisplayList;
+
+    mSelected.resize(displayList.size());
+    mHighlighted.resize(displayList.size());
+
     ImGuiIO& io = ImGui::GetIO();
 
     // early out if window is being clipped
@@ -398,15 +470,19 @@ void BrowserWidget::directoryTable() {
 
     if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && isClearingSelection) {
         mSelected.assign(mSelected.size(), false);
-        mNumSelected = 0;
-    }
+        mCurrentHighlightIdx = -1;
 
-    mSelected.resize(displayList.size());
+        mNumSelected = 0;
+        if(!mSearchWindowOpen) {
+            mHighlighted.assign(mHighlighted.size(), false);
+        }
+    }
 
     mTableSortSpecs = ImGui::TableGetSortSpecs();
 
     ImGui::TableHeadersRow();
 
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
     while(clipper.Step()) {
         for(u32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
             std::string uniqueID = "##FileRecord" + std::to_string(i);
@@ -527,6 +603,12 @@ void BrowserWidget::directoryTable() {
             ImGui::TableNextColumn();
             ImGui::Text(item.name.c_str());
 
+            if(mHighlighted[i]) {
+                ImVec2 cursor = ImGui::GetCursorScreenPos();
+                ImVec2 max{cursor.x + ImGui::CalcItemWidth(), cursor.y - ImGui::GetTextLineHeightWithSpacing()};
+                drawList->AddRectFilled(cursor, max, IM_COL32(222, 199, 53, 100));
+            }
+
             ImGui::PopID();
             /*
             ImGui::TableSetColumnIndex(2);
@@ -623,6 +705,14 @@ void BrowserWidget::directoryTable() {
         }
     }
 
+    clipper.End();
+
+    if(mCurrentHighlightIdx >= 0 && mHighlightNextItem) {
+        mHighlightNextItem = false;
+        float item_pos_y = clipper.StartPosY + (clipper.ItemsHeight * mCurrentHighlightIdx);
+        ImGui::SetScrollFromPosY(item_pos_y - ImGui::GetWindowPos().y);
+    }
+
     ImGui::EndTable();
 
     ImGui::EndChild();
@@ -702,6 +792,8 @@ void BrowserWidget::driveList() {
             ImGui::PopID();
         }
     }
+
+    clipper.End();
 
     ImGui::EndTable();
 

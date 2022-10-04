@@ -55,6 +55,12 @@ private:
     
     std::vector<DriveRecord> mDriveList;
 
+    std::vector<bool> mHighlighted;
+    int mCurrentHighlightIdx = -1;
+    bool mSearchWindowOpen = false;
+    bool mHighlightNextItem = false;
+    std::string mSearchFilter;
+
     std::vector<bool> mSelected;
     int mNumSelected = 0;
     bool mUpdateFlag = true;
