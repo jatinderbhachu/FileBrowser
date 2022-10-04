@@ -2,3 +2,9 @@
 	path = third_party/imgui
 	url = https://github.com/ocornut/imgui
     branch = docking
+[submodule "third_party/IconFontCppHeaders"]
+	path = third_party/IconFontCppHeaders
+	url = https://github.com/juliettef/IconFontCppHeaders
+[submodule "third_party/Fork-Awesome"]
+	path = third_party/Fork-Awesome
+	url = https://github.com/ForkAwesome/Fork-Awesome

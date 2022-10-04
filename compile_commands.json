@@ -1,78 +1,88 @@
 [
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\browser_widget.cpp.obj", "src\\browser_widget.cpp"],
-  "file": "src\\browser_widget.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\BrowserWidget.cpp.obj", "src\\BrowserWidget.cpp"],
+  "file": "src\\BrowserWidget.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\file_ops.cpp.obj", "src\\file_ops.cpp"],
-  "file": "src\\file_ops.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\CommandParser.cpp.obj", "src\\CommandParser.cpp"],
+  "file": "src\\CommandParser.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\main.cpp.obj", "src\\main.cpp"],
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\FileOps.cpp.obj", "src\\FileOps.cpp"],
+  "file": "src\\FileOps.cpp"
+},
+{
+  "directory": "C:\\dev\\projects\\FileBrowser",
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\FileOpsProgressSink.cpp.obj", "src\\FileOpsProgressSink.cpp"],
+  "file": "src\\FileOpsProgressSink.cpp"
+},
+{
+  "directory": "C:\\dev\\projects\\FileBrowser",
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\FileOpsWorker.cpp.obj", "src\\FileOpsWorker.cpp"],
+  "file": "src\\FileOpsWorker.cpp"
+},
+{
+  "directory": "C:\\dev\\projects\\FileBrowser",
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\main.cpp.obj", "src\\main.cpp"],
   "file": "src\\main.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\path.cpp.obj", "src\\path.cpp"],
-  "file": "src\\path.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\Path.cpp.obj", "src\\Path.cpp"],
+  "file": "src\\Path.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\string_util.cpp.obj", "src\\string_util.cpp"],
-  "file": "src\\string_util.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\StringUtils.cpp.obj", "src\\StringUtils.cpp"],
+  "file": "src\\StringUtils.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\imgui.cpp.obj", "..\\..\\libs\\imgui182\\imgui.cpp"],
-  "file": "..\\..\\libs\\imgui182\\imgui.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\imgui.cpp.obj", "third_party\\imgui\\imgui.cpp"],
+  "file": "third_party\\imgui\\imgui.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\imgui_draw.cpp.obj", "..\\..\\libs\\imgui182\\imgui_draw.cpp"],
-  "file": "..\\..\\libs\\imgui182\\imgui_draw.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\imgui_draw.cpp.obj", "third_party\\imgui\\imgui_draw.cpp"],
+  "file": "third_party\\imgui\\imgui_draw.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\imgui_demo.cpp.obj", "..\\..\\libs\\imgui182\\imgui_demo.cpp"],
-  "file": "..\\..\\libs\\imgui182\\imgui_demo.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\imgui_demo.cpp.obj", "third_party\\imgui\\imgui_demo.cpp"],
+  "file": "third_party\\imgui\\imgui_demo.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\imgui_widgets.cpp.obj", "..\\..\\libs\\imgui182\\imgui_widgets.cpp"],
-  "file": "..\\..\\libs\\imgui182\\imgui_widgets.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\imgui_widgets.cpp.obj", "third_party\\imgui\\imgui_widgets.cpp"],
+  "file": "third_party\\imgui\\imgui_widgets.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\imgui_tables.cpp.obj", "..\\..\\libs\\imgui182\\imgui_tables.cpp"],
-  "file": "..\\..\\libs\\imgui182\\imgui_tables.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\imgui_tables.cpp.obj", "third_party\\imgui\\imgui_tables.cpp"],
+  "file": "third_party\\imgui\\imgui_tables.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\misc\\cpp\\imgui_stdlib.cpp.obj", "..\\..\\libs\\imgui182\\misc\\cpp\\imgui_stdlib.cpp"],
-  "file": "..\\..\\libs\\imgui182\\misc\\cpp\\imgui_stdlib.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\misc\\cpp\\imgui_stdlib.cpp.obj", "third_party\\imgui\\misc\\cpp\\imgui_stdlib.cpp"],
+  "file": "third_party\\imgui\\misc\\cpp\\imgui_stdlib.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\backends\\imgui_impl_glfw.cpp.obj", "..\\..\\libs\\imgui182\\backends\\imgui_impl_glfw.cpp"],
-  "file": "..\\..\\libs\\imgui182\\backends\\imgui_impl_glfw.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\backends\\imgui_impl_glfw.cpp.obj", "third_party\\imgui\\backends\\imgui_impl_glfw.cpp"],
+  "file": "third_party\\imgui\\backends\\imgui_impl_glfw.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\__\\__\\libs\\imgui182\\backends\\imgui_impl_opengl3.cpp.obj", "..\\..\\libs\\imgui182\\backends\\imgui_impl_opengl3.cpp"],
-  "file": "..\\..\\libs\\imgui182\\backends\\imgui_impl_opengl3.cpp"
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/std:c++17", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\third_party\\imgui\\backends\\imgui_impl_opengl3.cpp.obj", "third_party\\imgui\\backends\\imgui_impl_opengl3.cpp"],
+  "file": "third_party\\imgui\\backends\\imgui_impl_opengl3.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/Isrc", "/Isrc\\glad\\include", "/IC:\\dev\\libs\\imgui182", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\glad\\src\\glad.c.obj", "src\\glad\\src\\glad.c"],
+  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.main.pdb", "/Od", "/Isrc", "/Isrc\\glad\\include", "/Ithird_party\\imgui", "/Ithird_party\\IconFontCppHeaders", "/IC:\\dev\\libs\\glfw\\include", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\main\\windows\\x64\\debug\\src\\glad\\src\\glad.c.obj", "src\\glad\\src\\glad.c"],
   "file": "src\\glad\\src\\glad.c"
-},
-{
-  "directory": "C:\\dev\\projects\\FileBrowser",
-  "arguments": ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/Zi", "/FS", "/Fdbuild\\windows\\x64\\debug\\compile.tests.pdb", "/Od", "/std:c++17", "/IC:\\dev\\libs\\catch2", "/Isrc", "/EHsc", "/Zi", "/MTd", "/DEBUG:FULL", "/Fobuild\\.objs\\tests\\windows\\x64\\debug\\src\\string_util.cpp.obj", "src\\string_util.cpp"],
-  "file": "src\\string_util.cpp"
 },
 {
   "directory": "C:\\dev\\projects\\FileBrowser",

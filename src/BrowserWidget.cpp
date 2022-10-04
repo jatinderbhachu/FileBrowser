@@ -5,6 +5,8 @@
 #include "FileOps.h"
 #include "FileOpsWorker.h"
 
+#include <IconsForkAwesome.h>
+
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
 #endif
@@ -453,7 +455,14 @@ void BrowserWidget::browserTable() {
             }
 
             ImGui::SameLine(0.0f, 0.0f);
-            ImGui::Text(item.isFile ? " " : "[]");
+
+            if(item.isFile) {
+                ImGui::Text(ICON_FK_FILE_TEXT);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(222, 199, 53, 255));
+                ImGui::Text(ICON_FK_FOLDER);
+                ImGui::PopStyleColor();
+            }
 
             ImGui::TableNextColumn();
             ImGui::Text(item.name.c_str());

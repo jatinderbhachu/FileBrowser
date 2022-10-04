@@ -13,6 +13,7 @@ target("main")
         "./src",
         "src/glad/include",
         "third_party/imgui",
+        "third_party/IconFontCppHeaders",
         "C:/dev/libs/glfw/include"
         )
 
@@ -42,6 +43,15 @@ target("main")
         "third_party/imgui/backends/imgui_impl_glfw.cpp",
         "third_party/imgui/backends/imgui_impl_opengl3.cpp"
     )
+    add_deps("copy_fonts")
+
+
+target("copy_fonts")
+    on_build(function(target)
+        os.trycp("$(projectdir)/third_party/Fork-Awesome/fonts/forkawesome-webfont.ttf", "$(buildir)/windows/x64/debug/forkawesome-webfont.ttf")
+        os.trycp("$(projectdir)/third_party/Fork-Awesome/fonts/forkawesome-webfont.ttf", "$(buildir)/windows/x64/release/forkawesome-webfont.ttf")
+    end)
+
 
 target("tests")
     set_languages("c++17")

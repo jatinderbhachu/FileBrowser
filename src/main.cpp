@@ -25,6 +25,7 @@
 #include <memory.h>
 #include "FileOpsWorker.h"
 
+#include <IconsForkAwesome.h>
 
 static const char* DebugTestPath = "./browser_test/runtime_test";
 
@@ -35,9 +36,7 @@ int main() {
     int width = 1280;
     int height = 720;
 
-
     glfwInit();
-
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -55,6 +54,13 @@ int main() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 
+    io.Fonts->AddFontDefault();
+
+    static const ImWchar iconsRanges[] = { ICON_MIN_FK, ICON_MAX_16_FK, 0 };
+    ImFontConfig iconsConfig; iconsConfig.MergeMode = true; iconsConfig.PixelSnapH = true;
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FK, 16.0f, &iconsConfig, iconsRanges);
+
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
@@ -63,8 +69,6 @@ int main() {
     const char* glsl_version = "#version 460";
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-
-    //io.Fonts->AddFontFromFileTTF("default.ttf", 16);
 
     ImVec4 clearColor{0.1f, 0.1f, 0.1f, 1.0f};
 
