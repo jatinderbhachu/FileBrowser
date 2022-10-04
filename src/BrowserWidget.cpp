@@ -96,16 +96,18 @@ void BrowserWidget::draw(int id, bool& isFocused) {
         // show a search window
         mSearchWindowOpen = true;
     }
+
+
     int searchWindowFlags = ImGuiWindowFlags_NoDecoration
-        | ImGuiWindowFlags_NoDocking
-        ;
+        | ImGuiWindowFlags_NoDocking;
 
     if(mSearchWindowOpen) {
         float width = ImGui::GetWindowWidth();
         float height = ImGui::GetWindowHeight();
 
-        ImGui::SetNextWindowSize({width / 3.0f, 50.0f});
-        ImGui::SetNextWindowPos({(width / 2.0f) - (width / 6.0f), height / 5.0f});
+        float lineHeight = ImGui::GetTextLineHeightWithSpacing();
+        ImGui::SetNextWindowSize({width, lineHeight});
+        ImGui::SetNextWindowPos({0.0f, height - lineHeight * 2.0f});
 
         ImGui::Begin("###SearchWindow", nullptr, searchWindowFlags);
 
@@ -124,6 +126,10 @@ void BrowserWidget::draw(int id, bool& isFocused) {
                 }
             }
             mHighlightNextItem = true;
+        }
+
+        if(ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+            mSearchWindowOpen = false;
         }
 
         if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
@@ -606,7 +612,12 @@ void BrowserWidget::directoryTable() {
             if(mHighlighted[i]) {
                 ImVec2 cursor = ImGui::GetCursorScreenPos();
                 ImVec2 max{cursor.x + ImGui::CalcItemWidth(), cursor.y - ImGui::GetTextLineHeightWithSpacing()};
-                drawList->AddRectFilled(cursor, max, IM_COL32(222, 199, 53, 100));
+
+                drawList->AddRectFilled(cursor, max, IM_COL32(220, 199, 53, 100));
+
+                if(i == mCurrentHighlightIdx) {
+                    drawList->AddRect(cursor, max, IM_COL32(255, 0, 0, 255));
+                }
             }
 
             ImGui::PopID();
