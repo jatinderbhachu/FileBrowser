@@ -126,7 +126,6 @@ FileOpsWorker::~FileOpsWorker() {
 }
 
 void FileOpsWorker::addFileOperation(FileOp newOp) {
-
     // check if there is an open spot to add the file operation
     int newOpIdx = -1;
     for (int i = 0; i < mFileOperations.size(); i++) {

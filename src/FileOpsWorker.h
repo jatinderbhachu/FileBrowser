@@ -1,10 +1,8 @@
 #pragma once
-#include "types.h"
 #include "ThreadedQueue.h"
 #include "Path.h"
 
 #include <thread>
-#include <string>
 
 enum FileOpType {
     FILE_OP_COPY,

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "types.h"
-
 #include "Path.h"
 #include "SortDirection.h"
 
@@ -20,7 +18,6 @@ struct ImGuiTableSortSpecs;
 
 class BrowserWidget
 {
-
     struct MovePayload {
         Path sourcePath;
         std::vector<FileOps::Record>* sourceDisplayList;
@@ -36,7 +33,7 @@ public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
     void setCurrentDirectory(const Path& path);
-    void draw(int id, bool& isFocused);
+    void update(int id, bool& isFocused);
 
     Path getCurrentDirectory() const;
 
@@ -47,6 +44,8 @@ private:
     void directorySegments();
     void directoryTable();
     void driveList();
+
+    void updateSearch();
 
     FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;

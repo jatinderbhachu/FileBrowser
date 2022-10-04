@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "types.h"
 #include "SortDirection.h"
 
 class Path;
@@ -36,7 +35,7 @@ namespace FileOps {
         TEMPORARY = 0x100,
         VIRTUAL = 0x10000
     };
-    constexpr u32 FileAttributesCount = 19;
+    constexpr int FileAttributesCount = 19;
 
 
     void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
