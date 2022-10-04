@@ -122,8 +122,6 @@ void BrowserWidget::draw(int id, bool& isFocused) {
 
     directorySegments();
 
-    ImGui::NewLine();
-
     // up directory button
     if(ImGui::Button("..")) {
         mCurrentDirectory.popSegment();
@@ -250,6 +248,17 @@ void BrowserWidget::draw(int id, bool& isFocused) {
 }
 
 void BrowserWidget::directorySegments() {
+    ImGuiStyle style = ImGui::GetStyle();
+
+    float childHeight = ImGui::GetTextLineHeightWithSpacing();
+
+    ImGuiWindowFlags childFlags = ImGuiWindowFlags_NoDecoration;
+
+    if(!ImGui::BeginChild("DirectorySegments", ImVec2(0, childHeight), false, childFlags)) {
+        ImGui::EndChild();
+        return;
+    }
+
     std::string uniqueID = "This PC###ThisPCSegment";
     const ImVec2 text_size = ImGui::CalcTextSize("This PC", false, false);
     ImVec2 cursorPos = ImGui::GetCursorPos();
@@ -318,6 +327,8 @@ void BrowserWidget::directorySegments() {
         ImGui::SameLine();
         ImGui::PopID();
     }
+
+    ImGui::EndChild();
 }
 
 void BrowserWidget::directoryTable() {

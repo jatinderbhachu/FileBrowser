@@ -111,7 +111,7 @@ int main() {
 
         glfwGetWindowSize(window, &width, &height);
 
-        ImGuiWindowFlags containerWindowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags containerWindowFlags = ImGuiWindowFlags_NoDocking;
 
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);

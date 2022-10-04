@@ -124,7 +124,6 @@ void getDriveLetters(std::vector<char> &out_driveLetters) {
     }
 }
 
-
 void openFile(const Path& path) {
     ShellExecuteW(0, 0, path.wstr().c_str(), 0, 0, SW_SHOW);
 }
