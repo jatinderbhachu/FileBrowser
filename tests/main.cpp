@@ -1,3 +1,4 @@
+#include "StringUtils.h"
 #include <objbase.h>
 #include <combaseapi.h>
 
@@ -5,8 +6,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string.h>
 
-#include <file_ops.h>
+#include <FileOps.h>
+#include <Path.h>
 #include <iostream>
 
 
@@ -20,7 +23,7 @@ void createFile(fs::path filePath) {
 
 std::vector<FileOps::Record> getItemsInDirectory(fs::path dir) {
     std::vector<FileOps::Record> result;
-    FileOps::enumerateDirectory(dir.u8string(), result);
+    FileOps::enumerateDirectory(Path(dir.u8string()), result);
     return result;
 }
 
@@ -114,7 +117,7 @@ TEST_CASE( "File operations", "[simple]" ) {
 
         REQUIRE_THAT(getFilenamesInDirectory(testDir), Catch::Matchers::UnorderedEquals(std::vector<std::string>({"newDir", filename })));
 
-        bool wasMoved = FileOps::moveFileOrDirectory(fileToMove.u8string(), newDir.u8string(), filename);
+        bool wasMoved = FileOps::moveFileOrDirectory(fileToMove.u8string(), newDir.u8string());
         REQUIRE_THAT(getFilenamesInDirectory(testDir), Catch::Matchers::UnorderedEquals(std::vector<std::string>({"newDir"})));
         REQUIRE_THAT(getFilenamesInDirectory(newDir),  Catch::Matchers::UnorderedEquals(std::vector<std::string>({ filename })));
         REQUIRE(wasMoved);
@@ -128,7 +131,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         createFile(fileToRename);
         REQUIRE_THAT(getFilenamesInDirectory(testDir), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ filename })));
 
-        bool wasRenamed = FileOps::renameFileOrDirectory(fileToRename.u8string(), newName);
+        bool wasRenamed = FileOps::renameFileOrDirectory(fileToRename.u8string(), Util::Utf8ToWstring(newName));
         REQUIRE_THAT(getFilenamesInDirectory(testDir), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ newName })));
         REQUIRE(wasRenamed);
     }

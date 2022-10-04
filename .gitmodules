@@ -8,3 +8,9 @@
 [submodule "third_party/Fork-Awesome"]
 	path = third_party/Fork-Awesome
 	url = https://github.com/ForkAwesome/Fork-Awesome
+[submodule "third_party/glfw"]
+	path = third_party/glfw
+	url = https://github.com/glfw/glfw
+[submodule "third_party/catch2"]
+	path = third_party/catch2
+	url = https://github.com/catchorg/Catch2

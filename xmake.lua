@@ -3,18 +3,39 @@ add_rules("mode.debug", "mode.release")
 -- switch to debug mode using:
 -- xmake f -m debug
 
+target("glfw")
+    set_languages("c++17")
+    set_kind("static")
+    
+    add_syslinks("user32", "shell32", "gdi32")
+    add_includedirs(
+        "third_party/glfw/include",
+        "third_party/glfw/src"
+        )
+
+    add_cxflags("/EHsc", "/MT")
+    add_ldflags("/LTCG")
+    set_optimize("fastest")
+
+    add_defines("_GLFW_WIN32")
+
+    add_files(
+        "third_party/glfw/src/*.c"
+    )
+
 
 target("main")
     set_languages("c++17")
     set_kind("binary")
+    add_deps("glfw", "copy_fonts")
 
-    add_linkdirs("C:/dev/libs/glfw/build/src/Release")
+
     add_includedirs(
         "./src",
         "src/glad/include",
         "third_party/imgui",
         "third_party/IconFontCppHeaders",
-        "C:/dev/libs/glfw/include"
+        "third_party/glfw/include"
         )
 
     if is_mode("debug") then
@@ -29,7 +50,7 @@ target("main")
 
     add_ldflags("/SUBSYSTEM:CONSOLE")
 
-    add_links("glfw3", "user32", "gdi32", "shlwapi", "shell32", "Ole32")
+    add_links("glfw", "user32", "gdi32", "shlwapi", "shell32", "Ole32")
 
     add_files(
         "src/glad/**.c",
@@ -43,7 +64,6 @@ target("main")
         "third_party/imgui/backends/imgui_impl_glfw.cpp",
         "third_party/imgui/backends/imgui_impl_opengl3.cpp"
     )
-    add_deps("copy_fonts")
 
 
 target("copy_fonts")
@@ -58,8 +78,8 @@ target("tests")
     set_kind("binary")
 
     add_includedirs(
-        "C:/dev/libs/catch2",
-        "./src"
+        "third_party/catch2/extras",
+        "src"
         )
 
     if is_mode("debug") then
@@ -77,10 +97,11 @@ target("tests")
     add_links("user32", "gdi32", "shell32", "Ole32")
 
     add_files(
-        "src/filebrowser.cpp",
-        "src/string_util.cpp",
+        "src/StringUtils.cpp",
+        "src/FileOps.cpp",
+        "src/Path.cpp",
         "tests/main.cpp",
-        "C:/dev/libs/catch2/catch_amalgamated.cpp"
+        "third_party/catch2/extras/catch_amalgamated.cpp"
     )
 
 
