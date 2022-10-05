@@ -1,5 +1,5 @@
 # FileBrowser
-An experimental file browser with a focus on productivity and speed.
+An experimental file browser with a focus on productivity and speed. Written in C++17.
 
 ## Features
 - Basic navigation and file operations 
