@@ -17,3 +17,10 @@ https://user-images.githubusercontent.com/10367799/193976268-2c06ae92-e412-4f21-
 ### Search for items in directory with `/` command
 https://user-images.githubusercontent.com/10367799/193976269-d8811a57-e39a-4846-a010-b702746ed266.mp4
 
+## Libraries Used
+- [ImGui](https://github.com/ocornut/imgui) - GUI library
+- [GLFW](https://www.glfw.org/) - OpenGL context and window creation
+- [GLAD](https://github.com/Dav1dde/glad) - OpenGL Loader-Generator
+- [Fork-Awesome](https://github.com/ForkAwesome/Fork-Awesome) - Icons font
+- [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) - Headers for icon fonts
+- [Catch2](https://github.com/catchorg/Catch2) - Testing framework
