@@ -173,27 +173,31 @@ void Application::run() {
             // consume result queue
             mFileOpsWorker.syncProgress();
 
-            // display any in progress operations
+            // display any in-progress operations
             for(FileOp& op : mFileOpsWorker.mFileOperations) {
                 if(op.idx >= 0) {
+                    std::string fromLastSegment = op.from.getLastSegment();
+                    std::string toLastSegment = op.to.getLastSegment();
                     switch(op.opType) {
                         case FileOpType::FILE_OP_COPY:
                             {
-                                ImGui::Text("Copying %s to %s progress %d/%d \n", op.from.str().c_str(), op.to.str().c_str(), op.currentProgress, op.totalProgress);
+                                ImGui::Text("Copying %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
                             } break;
                         case FileOpType::FILE_OP_MOVE:
                             {
-                                ImGui::Text("Moving %s to %s progress %d/%d \n", op.from.str().c_str(), op.to.str().c_str(), op.currentProgress, op.totalProgress);
+                                ImGui::Text("Moving %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
                             } break;
                         case FileOpType::FILE_OP_DELETE:
                             {
-                                ImGui::Text("Deleting %s progress %d/%d \n", op.from.str().c_str(), op.currentProgress, op.totalProgress);
+                                ImGui::Text("Deleting %s", fromLastSegment.c_str());
                             } break;
                         case FileOpType::FILE_OP_RENAME:
                             {
-                                ImGui::Text("Rename %s progress %d/%d \n", op.from.str().c_str(), op.currentProgress, op.totalProgress);
+                                ImGui::Text("Rename %s", fromLastSegment.c_str());
                             } break;
                     }
+                    ImGui::SameLine();
+                    ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
                 }
             }
 

@@ -761,9 +761,11 @@ void BrowserWidget::updateSearch() {
         float width = ImGui::GetWindowWidth();
         float height = ImGui::GetWindowHeight();
 
+        
+
         float lineHeight = ImGui::GetTextLineHeightWithSpacing();
         ImGui::SetNextWindowSize({width, lineHeight});
-        ImGui::SetNextWindowPos({0.0f, height - lineHeight * 2.0f});
+        ImGui::SetNextWindowPos({ImGui::GetWindowPos().x, height - lineHeight * 2.0f});
 
         ImGui::Begin("###SearchWindow", nullptr, searchWindowFlags);
 

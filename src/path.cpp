@@ -26,6 +26,13 @@ Path::Path(const Path& other) {
     parse();
 }
 
+Path& Path::operator=(const Path &rhs) {
+    mText = rhs.mText;
+    parse();
+
+    return *this;
+}
+
 
 void Path::parse() {
     if(mText.empty()) {
@@ -145,6 +152,30 @@ void Path::toAbsolute() {
 
     mText = result;
     parse();
+}
+
+bool Path::hasFileExtension() {
+    // get last segment and check if it has '.'
+    if(mSegments.empty()) return false;
+
+    std::string_view lastSegment = mSegments.back();
+
+    return lastSegment.find('.') != std::string::npos;
+}
+
+std::string Path::getFileExtension() {
+    if(hasFileExtension()) {
+        std::string_view lastSegment = mSegments.back();
+
+        size_t dotPos = lastSegment.find('.');
+        return std::string(lastSegment.substr(dotPos));
+    }
+}
+
+std::string Path::getLastSegment() {
+    if(!mSegments.empty()) {
+        return std::string(mSegments.back());
+    }
 }
 
 bool Path::isDriveRoot() const {

@@ -15,6 +15,7 @@ public:
     Path();
     Path(const std::string& pathStr);
     Path(const Path& other);
+    Path& operator=(const Path& rhs);
 
     const std::string& str() const;
     std::wstring wstr() const;
@@ -27,6 +28,8 @@ public:
 
     bool hasFileExtension();
     std::string getFileExtension();
+
+    std::string getLastSegment();
 
     bool isDriveRoot() const;
 

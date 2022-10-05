@@ -14,8 +14,9 @@ inline static void PrintError(HRESULT hr) {
         case COPYENGINE_E_FLD_IS_FILE_DEST: printf("[ERROR] Existing destination file with same name as folder\n"); break;
         case COPYENGINE_E_FILE_IS_FLD_DEST: printf("[ERROR] Existing destination folder with same name as file\n"); break;
         case COPYENGINE_E_SAME_FILE:        printf("[ERROR] Source and destination file are the same\n"); break;
+        case COPYENGINE_E_ACCESS_DENIED_SRC: printf("[ERROR] Access denied\n"); break;
         default:
-            printf("Unhandled or Unknown error.\n");
+            printf("Unhandled or Unknown error: %ld.\n", hr);
     };
 }
 
