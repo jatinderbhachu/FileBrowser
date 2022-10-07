@@ -235,6 +235,7 @@ void BrowserWidget::update(int id, bool& isFocused) {
         } else {
             FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList);
         }
+
         FileOps::sortByName(mSortDirection, mDisplayList);
         FileOps::sortByType(mSortDirection, mDisplayList);
 

@@ -22,14 +22,16 @@
 
 namespace FileOps {
 
+
 inline static int GetChunk(const std::string str, int start) {
     if(start >= str.size()) return 1;
     char startChar = str[start];
     int length = 1;
-    if(std::isdigit(startChar)) {
+
+    if(Util::isDigit(startChar)) {
         // move until next char or end
         while(start++ < str.size()) {
-            if(!std::isdigit(str[start])) {
+            if(!Util::isDigit(str[start])) {
                 break;
             }
             length++;
@@ -37,7 +39,7 @@ inline static int GetChunk(const std::string str, int start) {
     } else {
         // move until next digit or end
         while(start++ < str.size()) {
-            if(std::isdigit(str[start])) {
+            if(Util::isDigit(str[start])) {
                 break;
             }
             length++;
@@ -60,14 +62,14 @@ inline static bool NaturalComparator(const std::string& lhs, const std::string& 
         int thisChunkSize = GetChunk(lhs, thisPos);
         int thatChunkSize = GetChunk(rhs, thatPos);
 
-        if (std::isdigit(lhs[thisPos]) && !std::isdigit(rhs[thatPos])) {
+        if (Util::isDigit(lhs[thisPos]) && !Util::isDigit(rhs[thatPos])) {
             return false;
         }
-        if (!std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
+        if (!Util::isDigit(lhs[thisPos]) && Util::isDigit(rhs[thatPos])) {
             return true;
         }
 
-        if(std::isdigit(lhs[thisPos]) && std::isdigit(rhs[thatPos])) {
+        if(Util::isDigit(lhs[thisPos]) && Util::isDigit(rhs[thatPos])) {
             if(thisChunkSize == thatChunkSize) {
                 for(int i = 0; i < thisChunkSize; i++) {
                     int res = lhs[thisPos + i] - rhs[thatPos + i];
