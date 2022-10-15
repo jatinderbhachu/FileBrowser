@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "imgui_internal.h"
 
 #include <IconsForkAwesome.h>
 
@@ -116,13 +117,36 @@ void Application::run() {
             mBrowserWidgets.push_back(BrowserWidget(Path(""), &mFileOpsWorker));
         }
 
-        bool isWindowFocused = false;
+        bool isWidgetFocused = false;
+        static std::vector<int> widgetsToClose;
+        widgetsToClose.clear();
+
         // update browser widgets
         for(int i = 0; i < mBrowserWidgets.size(); i++) {
-            // pass index as unique id
-            mBrowserWidgets[i].update(i, isWindowFocused);
-            if(isWindowFocused) mCurrentFocusedWidget = i;
+            bool isOpenFlag = true;
+
+            mBrowserWidgets[i].update(isWidgetFocused, isOpenFlag);
+
+            if(!isOpenFlag) {
+                widgetsToClose.push_back(i);
+            }
+            
+            if(isWidgetFocused) mCurrentFocusedWidget = i;
         }
+
+        // remove browser widgets that are flagged to be closed
+        {
+            // move all to end of vector
+            int end = mBrowserWidgets.size();
+            for(int i : widgetsToClose) {
+                end--;
+                std::swap(mBrowserWidgets[i], mBrowserWidgets[end]);
+            }
+
+            if(end <= mBrowserWidgets.size())
+                mBrowserWidgets.erase(std::next(mBrowserWidgets.begin(), end), mBrowserWidgets.end());
+        }
+
 
         // command palette
         {

@@ -20,6 +20,7 @@ BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker)
     mUpdateFlag(true),
     mFileOpsWorker(fileOpsWorker)
 {
+    mID = IDCounter++;
     if(FileOps::doesPathExist(path)) {
         setCurrentDirectory(path);
     } else {
@@ -86,13 +87,17 @@ bool BeginDrapDropTargetWindow(const char* payload_type) {
     return false;
 }
 
-void BrowserWidget::update(int id, bool& isFocused) {
+void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
     ImGuiIO& io = ImGui::GetIO();
 
-    std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(id));
+    std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(mID));
 
     ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
-    ImGui::Begin(widgetUniqueName.c_str(), NULL, mainWindowFlags);
+
+    if(!ImGui::Begin(widgetUniqueName.c_str(), &isOpenFlag, mainWindowFlags)){
+        ImGui::End();
+        return;
+    }
 
     isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
@@ -206,7 +211,7 @@ void BrowserWidget::update(int id, bool& isFocused) {
 
     // TODO: should check which columns to sort by. For now just sort by file name
     if(mTableSortSpecs != nullptr) {
-        if(mTableSortSpecs->SpecsDirty) {
+        if(mTableSortSpecs->SpecsDirty && mTableSortSpecs->Specs != nullptr) {
             mUpdateFlag = true;
             mTableSortSpecs->SpecsDirty = false;
             if(mTableSortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {

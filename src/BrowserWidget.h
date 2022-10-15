@@ -33,14 +33,13 @@ public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
     void setCurrentDirectory(const Path& path);
-    void update(int id, bool& isFocused);
+    void update(bool& isFocused, bool& isOpenFlag);
 
     Path getCurrentDirectory() const;
 
     void renameSelected(const std::string& from, const std::string& to);
 
 private:
-    
     void directorySegments();
     void directoryTable();
     void driveList();
@@ -72,5 +71,8 @@ private:
 
     void* mDirChangeHandle = nullptr;
     int mRangeSelectionStart = -1; // the first selected item when doing shift-click selection
+
+    int mID;
+    inline static int IDCounter = 0;
 };
 
