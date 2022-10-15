@@ -26,11 +26,12 @@ public:
     static std::string_view CommandTypeToStr(CommandType cmd);
     static CommandType StrToCommandType(std::string_view str);
 
+    static const std::vector<std::string_view>& GetCommandNames();
+
     void execute(const std::string& input, BrowserWidget* focusedWidget);
 
 private:
     Command parse(std::string_view input);
     void parseArguments(Command& cmd, std::string_view args);
-    
 };
 

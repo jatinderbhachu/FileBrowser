@@ -8,33 +8,40 @@
 #include <filesystem>
 #include <fstream>
 
+inline static std::unordered_map<CommandType, std::string> CommandToStrMap;
+inline static std::unordered_map<std::string_view, CommandType> StrToCommandMap;
+inline static std::vector<std::string_view> CommandNames;
+
 CommandParser::CommandParser()
 {
+    // register command name conversion maps
+    if(CommandNames.empty()) {
+        auto xRegister = [](std::string_view name, CommandType cmd) {
+            CommandToStrMap[cmd] = name;
+            StrToCommandMap[name] = cmd;
+            CommandNames.push_back(name);
+        };
+
+        xRegister("replace", CommandType::REPLACE);
+        xRegister("mkdir", CommandType::MKDIR);
+        xRegister("make_debug_dir", CommandType::MAKE_DEBUG_DIR);
+    }
 }
 
 CommandParser::~CommandParser()
 {
 }
 
-inline static const std::unordered_map<CommandType, std::string_view> CommandToStrMap({
-        {CommandType::REPLACE, "replace"},
-        {CommandType::MKDIR, "mkdir"},
-        {CommandType::MAKE_DEBUG_DIR, "make_debug_dir"},
-    });
-
-inline static const std::unordered_map<std::string_view, CommandType> StrToCommandMap({
-        {"replace", CommandType::REPLACE},
-        {"mkdir", CommandType::MKDIR},
-        {"make_debug_dir", CommandType::MAKE_DEBUG_DIR},
-    });
 
 std::string_view CommandParser::CommandTypeToStr(CommandType cmd) {
-    return CommandToStrMap.count(cmd) > 0 ? CommandToStrMap.at(cmd)
+    return CommandToStrMap.count(cmd) > 0 
+        ? CommandToStrMap.at(cmd)
         : "UNKNOWN_COMMAND";
 }
 
 CommandType CommandParser::StrToCommandType(std::string_view str) {
-    return StrToCommandMap.count(str) > 0 ? StrToCommandMap.at(str)
+    return StrToCommandMap.count(str) > 0 
+        ? StrToCommandMap.at(str)
         : CommandType::UNKNOWN;
 }
 
@@ -174,5 +181,8 @@ void CommandParser::parseArguments(Command& cmd, std::string_view args) {
         default:
             return;
     }
+}
 
+const std::vector<std::string_view>& CommandParser::GetCommandNames() {
+    return CommandNames;
 }

@@ -5,6 +5,8 @@
 struct GLFWwindow;
 class BrowserWidget;
 
+struct ImGuiInputTextCallbackData;
+
 class Application
 {
 public:
@@ -13,7 +15,14 @@ public:
 
     void run();
 
+    std::vector<int> mCommandCompletionList;
+    int mCmdCompletionSelection = -1;
+    CommandParser mCmdParser;
+
 private:
+
+    static int CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data);
+
     int mWindowWidth = 1280;
     int mWindowHeight = 720;
 
@@ -22,8 +31,6 @@ private:
 
     std::vector<BrowserWidget> mBrowserWidgets;
     int mCurrentFocusedWidget = -1;
-
-    CommandParser mCmdParser;
     std::string mCmdPaletteInput;
     bool mCommandPaletteOpen = false;
 };

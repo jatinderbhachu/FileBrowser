@@ -160,24 +160,47 @@ void Application::run() {
                 ;
 
             if(mCommandPaletteOpen) {
-                ImGui::SetNextWindowSize({mWindowWidth / 3.0f, 50.0f});
+                ImGui::SetNextWindowSize({mWindowWidth / 3.0f, 0.0f});
                 ImGui::SetNextWindowPos({(mWindowWidth / 2.0f) - (mWindowWidth / 6.0f), mWindowHeight / 5.0f});
 
                 ImGui::Begin("###CommandPalette", nullptr, commandWindowFlags);
 
                 int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue
                     | ImGuiInputTextFlags_AutoSelectAll
+                    | ImGuiInputTextFlags_CallbackEdit
+                    | ImGuiInputTextFlags_CallbackCompletion
+                    | ImGuiInputTextFlags_CallbackHistory
                     ;
 
                 ImGui::SetNextItemWidth(-1.0f);
                 ImGui::SetKeyboardFocusHere(0);
-                if(ImGui::InputText("###CmdPaletteInput", &mCmdPaletteInput, inputFlags) && mCurrentFocusedWidget != -1) {
+                if(ImGui::InputText("###CmdPaletteInput", &mCmdPaletteInput, inputFlags, Application::CmdPalletInputTextCallback, this) && mCurrentFocusedWidget != -1) {
                     // parse input
                     printf("Parsing command %s\n", mCmdPaletteInput.c_str());
 
                     mCmdParser.execute(mCmdPaletteInput, &mBrowserWidgets[mCurrentFocusedWidget]);
 
                     mCommandPaletteOpen = false;
+                }
+
+                std::vector<std::string_view> cmdNames = mCmdParser.GetCommandNames();
+                if(mCmdPaletteInput.empty()) {
+                    mCommandCompletionList.clear();
+                    for(int i = 0; i < cmdNames.size(); i++) {
+                        mCommandCompletionList.push_back(i);
+                    }
+                }
+
+                // get list of matches
+                for(int i = 0; i < mCommandCompletionList.size(); i++) {
+                    int cmdIdx = mCommandCompletionList[i];
+
+                    ImGui::Text("%s", cmdNames[cmdIdx].data());
+                    if(i == mCmdCompletionSelection) {
+                        ImVec2 cursor = ImGui::GetCursorScreenPos();
+                        ImVec2 max{cursor.x + ImGui::CalcItemWidth(), cursor.y - ImGui::GetTextLineHeightWithSpacing()};
+                        ImGui::GetWindowDrawList()->AddRect(cursor, max, IM_COL32(255, 0, 0, 255));
+                    }
                 }
 
                 if(ImGui::IsKeyPressed(ImGuiKey_Escape)) mCommandPaletteOpen = false;
@@ -228,7 +251,6 @@ void Application::run() {
             ImGui::End();
         }
 
-
         ImGui::End(); // end container
 
         ImGui::Render();
@@ -244,3 +266,55 @@ void Application::run() {
         glfwSwapBuffers(mWindow);
     }
 }
+
+int Application::CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data) {
+    Application* app = static_cast<Application*>(data->UserData);
+    if(app == nullptr) return 0;
+
+    std::string_view buffer(data->Buf, data->BufTextLen);
+
+    app->mCommandCompletionList.clear();
+
+    // get all commands
+    std::vector<std::string_view> cmdNames = app->mCmdParser.GetCommandNames();
+
+    auto xMatches = [&data, &buffer](const std::string_view cmdName) {
+        if(data->BufTextLen > 0) {
+            return cmdName.find(buffer) != std::string::npos;
+        } else {
+            return true;
+        }
+    };
+
+    for(int i = 0; i < cmdNames.size(); i++) {
+        std::string_view name = cmdNames[i];
+        if(xMatches(name)) {
+            app->mCommandCompletionList.push_back(i);
+        }
+    }
+
+    if(data->EventKey == ImGuiKey_UpArrow) {
+        app->mCmdCompletionSelection--;
+    } else if(data->EventKey == ImGuiKey_DownArrow) {
+        app->mCmdCompletionSelection++;
+    }
+
+    if(app->mCommandCompletionList.empty()) {
+        app->mCmdCompletionSelection = -1;
+    } else {
+        if(app->mCmdCompletionSelection >= static_cast<int>(app->mCommandCompletionList.size())) {
+            app->mCmdCompletionSelection = 0;
+        } else if(app->mCmdCompletionSelection < 0) {
+            app->mCmdCompletionSelection = app->mCommandCompletionList.size() - 1;
+        }
+    }
+
+    if(data->EventKey == ImGuiKey_Tab) {
+        data->DeleteChars(0, data->BufTextLen);
+        data->InsertChars(0, cmdNames[app->mCommandCompletionList[app->mCmdCompletionSelection]].data());
+        data->BufDirty = true;
+    } 
+
+    return 0;
+}
+
