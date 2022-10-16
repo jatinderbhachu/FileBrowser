@@ -145,10 +145,19 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
         mUpdateFlag = true;
     }
 
-    if(!mCurrentDirectory.isEmpty()) {
-        directoryTable();
-    } else {
-        driveList();
+    switch(mDisplayListType) {
+        case DisplayListType::DEFAULT: 
+            {
+                directoryTable();
+            } break;
+        case DisplayListType::DRIVE: 
+            {
+                driveList();
+            } break;
+        case DisplayListType::PATH_NOT_FOUND_ERROR: 
+            {
+                ImGui::Text("Path not found...");
+            } break;
     }
 
     // TODO: following copy/delete operations should be batched together
@@ -237,8 +246,13 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
                 
                 mDriveList.push_back(driveRecord);
             }
+            mDisplayListType = DisplayListType::DRIVE;
         } else {
-            FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList);
+            if(FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList)) {
+                mDisplayListType = DisplayListType::DEFAULT;
+            } else {
+                mDisplayListType = DisplayListType::PATH_NOT_FOUND_ERROR;
+            }
         }
 
         FileOps::sortByName(mSortDirection, mDisplayList);

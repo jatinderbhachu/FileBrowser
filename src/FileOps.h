@@ -38,7 +38,7 @@ namespace FileOps {
     constexpr int FileAttributesCount = 19;
 
 
-    void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
+    bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
     void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     bool createDirectory(const Path& path);

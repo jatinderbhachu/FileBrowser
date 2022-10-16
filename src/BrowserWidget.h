@@ -29,6 +29,12 @@ class BrowserWidget
         char letter;
     };
 
+    enum class DisplayListType {
+        DEFAULT = 0, // typical folders and files 
+        DRIVE,       // list of drive 
+        PATH_NOT_FOUND_ERROR        // path wasn't found, display error
+    };
+
 public:
     BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker);
 
@@ -49,8 +55,9 @@ private:
     FileOpsWorker* mFileOpsWorker;
     Path mCurrentDirectory;
 
+
+    DisplayListType mDisplayListType = DisplayListType::DEFAULT;
     std::vector<FileOps::Record> mDisplayList;
-    
     std::vector<DriveRecord> mDriveList;
 
     std::vector<bool> mHighlighted;

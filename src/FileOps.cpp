@@ -131,9 +131,9 @@ void openFile(const Path& path) {
 }
 
 // path must be an absolute path
-void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems) {
-    if(path.isEmpty()) return;
-    //if(!doesPathExist(path)) return;
+bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems) {
+    if(path.isEmpty()) return false;
+    if(!doesPathExist(path)) return false;
 
     out_DirectoryItems.clear();
 
@@ -148,7 +148,7 @@ void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItem
 
     if(hFind == INVALID_HANDLE_VALUE) {
         printf("Can't find dir %s\n", dir.data());
-        return;
+        return false;
     }
 
     do {
@@ -170,6 +170,10 @@ void enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItem
 
         out_DirectoryItems.push_back(file);
     } while(FindNextFileW(hFind, &findFileData));
+
+    FindClose(hFind);
+
+    return true;
 }
 
 Path getCurrentProcessPath() {

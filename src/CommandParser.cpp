@@ -102,7 +102,6 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
                         outputFile.close();
                     }
                 }
-
             } break;
         case CommandType::UNKNOWN:
             {

@@ -170,12 +170,14 @@ std::string Path::getFileExtension() {
         size_t dotPos = lastSegment.find('.');
         return std::string(lastSegment.substr(dotPos));
     }
+    return "";
 }
 
 std::string Path::getLastSegment() {
     if(!mSegments.empty()) {
         return std::string(mSegments.back());
     }
+    return "";
 }
 
 bool Path::isDriveRoot() const {
