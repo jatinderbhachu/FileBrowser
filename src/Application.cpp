@@ -200,6 +200,20 @@ void Application::run() {
                         ImVec2 cursor = ImGui::GetCursorScreenPos();
                         ImVec2 max{cursor.x + ImGui::CalcItemWidth(), cursor.y - ImGui::GetTextLineHeightWithSpacing()};
                         ImGui::GetWindowDrawList()->AddRect(cursor, max, IM_COL32(255, 0, 0, 255));
+
+                        // show tooltip of command
+
+                        ImGui::SetNextWindowSize({(mWindowWidth / 6.0f), 0.0f});
+                        ImGui::SetNextWindowPos({(mWindowWidth / 2.0f) + (mWindowWidth / 6.0f), mWindowHeight / 5.0f});
+
+                        CommandType cmdType = CommandParser::StrToCommandType(cmdNames[cmdIdx]);
+
+                        ImGui::Begin("###CommandPaletteHint", nullptr, commandWindowFlags);
+
+                        ImGui::TextWrapped("%s", CommandParser::CommandHint(cmdType).data());
+
+                        ImGui::End();
+
                     }
                 }
 

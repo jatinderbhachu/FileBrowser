@@ -21,9 +21,9 @@ class CommandParser
 {
 public:
     CommandParser();
-    ~CommandParser();
 
     static std::string_view CommandTypeToStr(CommandType cmd);
+    static std::string_view CommandHint(CommandType cmd);
     static CommandType StrToCommandType(std::string_view str);
 
     static const std::vector<std::string_view>& GetCommandNames();

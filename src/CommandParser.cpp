@@ -11,32 +11,37 @@
 inline static std::unordered_map<CommandType, std::string> CommandToStrMap;
 inline static std::unordered_map<std::string_view, CommandType> StrToCommandMap;
 inline static std::vector<std::string_view> CommandNames;
+inline static std::unordered_map<CommandType, std::string> CommandHintsMap;
+
+inline static std::string_view UnknownCommandStr = "UNKNOWN_CMD";
 
 CommandParser::CommandParser()
 {
     // register command name conversion maps
     if(CommandNames.empty()) {
-        auto xRegister = [](std::string_view name, CommandType cmd) {
+        auto xRegister = [](CommandType cmd, std::string_view name, std::string_view hint = "") {
             CommandToStrMap[cmd] = name;
+            CommandHintsMap[cmd] = hint;
             StrToCommandMap[name] = cmd;
             CommandNames.push_back(name);
         };
 
-        xRegister("replace", CommandType::REPLACE);
-        xRegister("mkdir", CommandType::MKDIR);
-        xRegister("make_debug_dir", CommandType::MAKE_DEBUG_DIR);
+        xRegister(CommandType::REPLACE, "replace", "replace <arg1> <arg2>\nReplaces text matching arg1 with arg2 for the given selection.");
+        xRegister(CommandType::MKDIR, "mkdir", "mkdir <args...>\nCreates a directory in the currently selected window.");
+        xRegister(CommandType::MAKE_DEBUG_DIR, "make_debug_dir", "Makes a testing directory called 'browser_test' in the selected window.");
     }
 }
-
-CommandParser::~CommandParser()
-{
-}
-
 
 std::string_view CommandParser::CommandTypeToStr(CommandType cmd) {
     return CommandToStrMap.count(cmd) > 0 
         ? CommandToStrMap.at(cmd)
-        : "UNKNOWN_COMMAND";
+        : UnknownCommandStr;
+}
+
+std::string_view CommandParser::CommandHint(CommandType cmd) {
+    return CommandHintsMap.count(cmd) > 0 
+        ? CommandHintsMap.at(cmd)
+        : UnknownCommandStr;
 }
 
 CommandType CommandParser::StrToCommandType(std::string_view str) {
@@ -109,6 +114,7 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
 
 Command CommandParser::parse(std::string_view input) {
     Command result{};
+    if(input.empty()) return result;
 
     // determine the type 
     int start = 0;
