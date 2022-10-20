@@ -6,11 +6,30 @@
 class Path;
 class FileOpProgressSink;
 
+struct IFileOperation;
+
 namespace FileOps {
     struct Record {
         std::string name;
         bool isFile = false;
         unsigned long attributes;
+    };
+
+    class FileOperation {
+        public:
+            FileOperation();
+            bool init(FileOpProgressSink* ps = nullptr);
+            void remove(const Path& itemPath);
+            void move(const Path& itemPath, const Path& toDirectory);
+            void copy(const Path& itemPath, const Path& toDirectory);
+            void rename(const Path& itemPath, const std::string& newName);
+            void allowUndo(bool allow);
+            void execute();
+        private:
+            IFileOperation* mOperation = nullptr;
+            FileOpProgressSink* mProgressSink = nullptr;
+            unsigned long mProgressCookie;
+            unsigned long mFlags = 0;
     };
 
     // https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants

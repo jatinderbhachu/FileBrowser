@@ -12,7 +12,7 @@ enum FileOpType {
 };
 
 class FileOp {
-    public:
+public:
     int idx = -1;
     FileOpType opType;
     Path from;

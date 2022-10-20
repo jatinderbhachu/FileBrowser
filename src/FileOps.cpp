@@ -19,79 +19,9 @@
 #include <assert.h>
 
 #include "Path.h"
+#include "NaturalComparator.h"
 
 namespace FileOps {
-
-
-inline static int GetChunk(const std::string str, int start) {
-    if(start >= str.size()) return 1;
-    char startChar = str[start];
-    int length = 1;
-
-    if(Util::isDigit(startChar)) {
-        // move until next char or end
-        while(start++ < str.size()) {
-            if(!Util::isDigit(str[start])) {
-                break;
-            }
-            length++;
-        }
-    } else {
-        // move until next digit or end
-        while(start++ < str.size()) {
-            if(Util::isDigit(str[start])) {
-                break;
-            }
-            length++;
-        }
-    }
-
-    return length;
-}
-
-inline static bool NaturalComparator(const std::string& lhs, const std::string& rhs) {
-    if (lhs.empty())
-        return false;
-    if (rhs.empty())
-        return true;
-
-    int thisPos = 0;
-    int thatPos = 0;
-
-    while(thisPos < lhs.size() && thatPos < rhs.size()) {
-        int thisChunkSize = GetChunk(lhs, thisPos);
-        int thatChunkSize = GetChunk(rhs, thatPos);
-
-        if (Util::isDigit(lhs[thisPos]) && !Util::isDigit(rhs[thatPos])) {
-            return false;
-        }
-        if (!Util::isDigit(lhs[thisPos]) && Util::isDigit(rhs[thatPos])) {
-            return true;
-        }
-
-        if(Util::isDigit(lhs[thisPos]) && Util::isDigit(rhs[thatPos])) {
-            if(thisChunkSize == thatChunkSize) {
-                for(int i = 0; i < thisChunkSize; i++) {
-                    int res = lhs[thisPos + i] - rhs[thatPos + i];
-                    if(res != 0) return res > 0;
-                }
-            } else {
-                return thisChunkSize > thatChunkSize;
-            }
-        } else {
-            int res = lhs.compare(thisPos, thisChunkSize, rhs, thatPos, thatChunkSize);
-            if(res != 0) return res > 0;
-        }
-
-        if (thatChunkSize == 0) return false;
-        if (thisChunkSize == 0) return true;
-
-        thisPos += thisChunkSize;
-        thatPos += thatChunkSize;
-    }
-
-    return lhs.size() > rhs.size();
-};
 
 void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
     if(direction == SortDirection::Ascending) {
@@ -195,191 +125,194 @@ bool doesPathExist(const Path& path) {
 
 // NOTE: following operations shouldn't return false if the actual file operation failes... Error reporting is done through FileOpProgressSink
 
-bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgressSink* ps) {
+FileOperation::FileOperation() {
+    mFlags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION;
+}
+
+bool FileOperation::init(FileOpProgressSink* ps) {
+    mProgressSink = ps;
+
+    HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&mOperation));
+    if(!SUCCEEDED(hr)) return false;
+
+    if(mProgressSink != nullptr) {
+        hr = mOperation->Advise(mProgressSink, &mProgressCookie);
+    }
+
+    return SUCCEEDED(hr);
+}
+
+void FileOperation::remove(const Path& path) {
+    assert(mOperation != nullptr);
     //printf("Attempting to delete: %s\n", path.str().c_str());
     if(!doesPathExist(path)) {
         printf("Path %s does not exist.\n", path.str().c_str());
-        return false;
+        return;
     }
 
     if(path.isDriveRoot()) {
         printf("Cannot delete drive root .. \n");
-        return false;
+        return;
     }
-
-    std::wstring wPathStr(path.wstr());
-
-    IFileOperation* fo = nullptr;
-    HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
-    if(!SUCCEEDED(hr)) {
-        printf("cocreateinstance is null\n");
-
-        return false;
-    }
-
-    DWORD cookie = 0;
-    if(ps != nullptr) {
-        hr = fo->Advise(ps, &cookie);
-    }
-
 
     IShellItem* fileItem = nullptr;
-    hr = SHCreateItemFromParsingName(wPathStr.c_str(), NULL, IID_PPV_ARGS(&fileItem));
+    HRESULT hr = SHCreateItemFromParsingName(path.wstr().c_str(), NULL, IID_PPV_ARGS(&fileItem));
     if(!SUCCEEDED(hr)) {
         printf("SHCreateItemFromParsingName() failed\n");
-
-        return false;
+        return;
     }
 
-    DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION;
-    if(moveToRecycleBin) {
-        flags |= FOFX_ADDUNDORECORD | FOFX_RECYCLEONDELETE;
-    }
+    mOperation->DeleteItem(fileItem, nullptr);
 
-    fo->SetOperationFlags(flags);
-    fo->DeleteItem(fileItem, NULL);
-    hr = fo->PerformOperations();
-
-    if(ps != nullptr) {
-        fo->Unadvise(cookie);
-    }
-
-    fo->Release();
-
-    return true;
+    fileItem->Release();
 }
 
-bool moveFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
+void FileOperation::move(const Path& itemPath, const Path& targetPath) {
+    assert(mOperation != nullptr);
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
-        return false;
+        return;
     }
 
     if(itemPath.isDriveRoot()) {
         printf("Cannot move drive root .. \n");
-        return false;
+        return;
     }
 
-    std::wstring wItemPath(itemPath.wstr());
-    std::wstring wDestinationPath(to.wstr());
 
     IShellItem* itemToMove = nullptr;
-    IShellItem* destinationDir = nullptr;
-    SHCreateItemFromParsingName(wItemPath.data(), NULL, IID_PPV_ARGS(&itemToMove));
-    SHCreateItemFromParsingName(wDestinationPath.data(), NULL, IID_PPV_ARGS(&destinationDir));
+    IShellItem* destinationPath = nullptr;
+    SHCreateItemFromParsingName(itemPath.wstr().c_str(), NULL, IID_PPV_ARGS(&itemToMove));
+    SHCreateItemFromParsingName(targetPath.wstr().c_str(), NULL, IID_PPV_ARGS(&destinationPath));
     
-    if(itemToMove == nullptr || destinationDir == nullptr) {
+    if(itemToMove == nullptr || destinationPath == nullptr) {
         printf("Failed to create shell items for source destination paths\n");
-        return false;
+        return;
     }
 
-    IFileOperation* fo = nullptr;
-    HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
-    if(!SUCCEEDED(result)) return false;
+    mOperation->MoveItem(itemToMove, destinationPath, NULL, NULL);
 
-    DWORD cookie = 0;
-    if(ps != nullptr) {
-        result = fo->Advise(ps, &cookie);
-    }
-
-    DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
-
-    fo->SetOperationFlags(flags);
-    fo->MoveItem(itemToMove, destinationDir, NULL, NULL);
-    result = fo->PerformOperations();
-
-    if(ps != nullptr) {
-        fo->Unadvise(cookie);
-    }
-
-    fo->Release();
-
-    return true;
+    itemToMove->Release();
+    destinationPath->Release();
 }
 
-bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
+void FileOperation::copy(const Path& itemPath, const Path& targetPath) {
+    assert(mOperation != nullptr);
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
-        return false;
+        return;
     }
-    std::wstring wItemPath(itemPath.wstr());
-    std::wstring wDestinationPath(to.wstr());
+
+    if(itemPath.isDriveRoot()) {
+        printf("Cannot move drive root .. \n");
+        return;
+    }
+
 
     IShellItem* itemToMove = nullptr;
-    IShellItem* destinationDir = nullptr;
-    SHCreateItemFromParsingName(wItemPath.data(), NULL, IID_PPV_ARGS(&itemToMove));
-    SHCreateItemFromParsingName(wDestinationPath.data(), NULL, IID_PPV_ARGS(&destinationDir));
-    if(itemToMove == nullptr || destinationDir == nullptr) {
+    IShellItem* destinationPath = nullptr;
+    SHCreateItemFromParsingName(itemPath.wstr().c_str(), NULL, IID_PPV_ARGS(&itemToMove));
+    SHCreateItemFromParsingName(targetPath.wstr().c_str(), NULL, IID_PPV_ARGS(&destinationPath));
+    
+    if(itemToMove == nullptr || destinationPath == nullptr) {
         printf("Failed to create shell items for source destination paths\n");
-        return false;
+        return;
     }
 
-    IFileOperation* fo = nullptr;
-    HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
-    if(!SUCCEEDED(result)) return false;
+    mOperation->CopyItem(itemToMove, destinationPath, NULL, NULL);
 
-    DWORD cookie = 0;
-    if(ps != nullptr) {
-        result = fo->Advise(ps, &cookie);
-    }
-
-    DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
-
-    result = fo->CopyItem(itemToMove, destinationDir, NULL, NULL);
-    
-    result = fo->SetOperationFlags(flags);
-    result = fo->PerformOperations();
-    
-    if(ps != nullptr) {
-        result = fo->Unadvise(cookie);
-    }
-
-    result = fo->Release();
-
-    return true;
+    itemToMove->Release();
+    destinationPath->Release();
 }
 
-bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, FileOpProgressSink* ps) {
+void FileOperation::rename(const Path& itemPath, const std::string& newName) {
+    assert(mOperation != nullptr);
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
-        return false;
+        return;
     }
 
     if(itemPath.isDriveRoot()) {
         printf("Cannot rename drive root .. \n");
-        return false;
+        return;
     }
 
     std::wstring wItemPath(itemPath.wstr());
 
     IShellItem* itemToRename = nullptr;
-    SHCreateItemFromParsingName(wItemPath.data(), NULL, IID_PPV_ARGS(&itemToRename));
+    SHCreateItemFromParsingName(itemPath.wstr().c_str(), NULL, IID_PPV_ARGS(&itemToRename));
     
     if(itemToRename == nullptr) {
         printf("Failed to create shell item for source item\n");
-        return false;
+        return;
     }
 
-    IFileOperation* fo = nullptr;
-    HRESULT result = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&fo));
-    if(!SUCCEEDED(result)) return false;
+    std::wstring wNewName(Util::Utf8ToWstring(newName));
 
-    DWORD cookie = 0;
-    if(ps != nullptr) {
-        result = fo->Advise(ps, &cookie);
+    mOperation->RenameItem(itemToRename, wNewName.c_str(), NULL);
+
+    itemToRename->Release();
+}
+
+void FileOperation::allowUndo(bool allow) {
+    mFlags |= FOFX_ADDUNDORECORD | FOFX_RECYCLEONDELETE;
+}
+
+void FileOperation::execute() {
+    assert(mOperation != nullptr);
+
+    mOperation->SetOperationFlags(mFlags);
+    mOperation->PerformOperations();
+
+    if(mProgressSink != nullptr) {
+        mOperation->Unadvise(mProgressCookie);
     }
 
-    DWORD flags = FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOFX_ADDUNDORECORD;
+    mOperation->Release();
+}
 
-    fo->SetOperationFlags(flags);
-    fo->RenameItem(itemToRename, newName.c_str(), NULL);
-    result = fo->PerformOperations();
 
-    if(ps != nullptr) {
-        fo->Unadvise(cookie);
+bool deleteFileOrDirectory(const Path& path, bool moveToRecycleBin, FileOpProgressSink* ps) {
+
+    FileOperation operation;
+    if(operation.init(ps)) {
+        operation.remove(path);
+        operation.allowUndo(moveToRecycleBin);
+        operation.execute();
     }
 
-    fo->Release();
+    return true;
+}
+
+bool moveFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
+
+    FileOperation operation;
+    if(operation.init(ps)) {
+        operation.move(itemPath, to);
+        operation.execute();
+    }
+
+    return true;
+}
+
+bool copyFileOrDirectory(const Path& itemPath, const Path& to, FileOpProgressSink* ps) {
+
+    FileOperation operation;
+    if(operation.init(ps)) {
+        operation.copy(itemPath, to);
+        operation.execute();
+    }
+
+    return true;
+}
+
+bool renameFileOrDirectory(const Path& itemPath, const std::wstring& newName, FileOpProgressSink* ps) {
+
+    FileOperation operation;
+    if(operation.init(ps)) {
+        operation.rename(itemPath, Util::WstringToUtf8(newName));
+        operation.execute();
+    }
 
     return true;
 }

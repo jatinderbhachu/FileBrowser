@@ -113,7 +113,6 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE(wasDeleted == true);
     }
 
-
     SECTION("move file") {
         const std::string filename = "move_me.txt";
         fs::path targetPath = TEST_PATH / "targetPath";
@@ -141,6 +140,103 @@ TEST_CASE( "File operations", "[simple]" ) {
         bool wasRenamed = FileOps::renameFileOrDirectory(fileToRename.u8string(), Util::Utf8ToWstring(newName));
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ newName })));
         REQUIRE(wasRenamed);
+    }
+
+    SECTION("Batch delete operations") {
+        // create some files
+        std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
+        for(const auto& fileName : expectedNames) {
+            createFile(TEST_PATH / fileName);
+        }
+
+        REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(expectedNames));
+
+        FileOps::FileOperation op;
+
+        op.init();
+        for(const auto& fileName : expectedNames) {
+            op.remove(Path((TEST_PATH / fileName).u8string()));
+        }
+        op.execute();
+
+        REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
+    }
+
+    SECTION("Batch copy operations") {
+        fs::path targetPath = TEST_PATH / "target";
+
+        fs::create_directories(targetPath);
+
+        // create some files
+        std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
+        for(const auto& fileName : expectedNames) {
+            createFile(TEST_PATH / fileName);
+        }
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
+
+        FileOps::FileOperation op;
+
+        op.init();
+        for(const auto& fileName : expectedNames) {
+            Path itemPath((TEST_PATH / fileName).u8string());
+            op.copy(itemPath, targetPath.u8string());
+        }
+        op.execute();
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(expectedNames));
+        REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ "somefile", "target", "test1.txt", "yee" })));
+    }
+
+    SECTION("Batch move operations") {
+        fs::path targetPath = TEST_PATH / "target";
+
+        fs::create_directories(targetPath);
+
+        // create some files
+        std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
+        for(const auto& fileName : expectedNames) {
+            createFile(TEST_PATH / fileName);
+        }
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
+
+        FileOps::FileOperation op;
+
+        op.init();
+        for(const auto& fileName : expectedNames) {
+            Path itemPath((TEST_PATH / fileName).u8string());
+            op.move(itemPath, targetPath.u8string());
+        }
+        op.execute();
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(expectedNames));
+        REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ "target" })));
+    }
+
+    SECTION("Batch mix operations") {
+        fs::path targetPath = TEST_PATH / "target";
+
+        fs::create_directories(targetPath);
+
+        // create some files
+        std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
+        for(const auto& fileName : expectedNames) {
+            createFile(TEST_PATH / fileName);
+        }
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
+
+        FileOps::FileOperation op;
+
+        op.init();
+        op.copy(Path((TEST_PATH / "test1.txt").u8string()), targetPath.u8string());
+        op.move(Path((TEST_PATH / "somefile").u8string()), targetPath.u8string());
+        op.remove(Path((TEST_PATH / "yee").u8string()));
+        op.execute();
+
+        REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ "test1.txt", "somefile" })));
+        REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ "target", "test1.txt" })));
     }
 
     if(fs::exists(TEST_PATH)) {
