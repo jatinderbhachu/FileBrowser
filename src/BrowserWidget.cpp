@@ -3,7 +3,7 @@
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <regex>
-#include "FileOps.h"
+#include "FileSystem.h"
 #include "FileOpsWorker.h"
 
 #include <IconsForkAwesome.h>
@@ -21,11 +21,11 @@ BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker)
     mFileOpsWorker(fileOpsWorker)
 {
     mID = IDCounter++;
-    if(FileOps::doesPathExist(path)) {
+    if(FileSystem::doesPathExist(path)) {
         setCurrentDirectory(path);
     } else {
         std::vector<char> driveLetters;
-        FileOps::getDriveLetters(driveLetters);
+        FileSystem::getDriveLetters(driveLetters);
 
         assert(!driveLetters.empty());
         std::string rootDrive = std::string(1, driveLetters[0]) + ":\\";
@@ -50,8 +50,9 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         if(mSelected[i]) itemsToRename.push_back(i);
     }
 
+    BatchFileOperation fileOperation{};
     for(int itemToRename : itemsToRename) {
-        FileOps::Record& item = mDisplayList[itemToRename];
+        FileSystem::Record& item = mDisplayList[itemToRename];
 
         Path sourcePath(mCurrentDirectory);
         sourcePath.appendName(item.name);
@@ -59,12 +60,13 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         std::string newName = std::regex_replace( item.name, std::regex(from), to );
         Path targetPath(newName);
 
-        FileOp fileOperation{};
-        fileOperation.from = sourcePath;
-        fileOperation.to = targetPath;
-        fileOperation.opType = FileOpType::FILE_OP_RENAME;
-        mFileOpsWorker->addFileOperation(fileOperation);
+        BatchFileOperation::Operation op;
+        op.from = sourcePath;
+        op.to = targetPath;
+        op.opType = FileOpType::FILE_OP_RENAME;
+        fileOperation.operations.push_back(op);
     }
+    mFileOpsWorker->addFileOperation(fileOperation);
 }
 
 bool BeginDrapDropTargetWindow(const char* payload_type) {
@@ -111,22 +113,24 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
             memcpy(&voidPayload, payload->Data, payload->DataSize);
             MovePayload* movePayload = (MovePayload*)voidPayload;
 
-            std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+            std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
 
+            BatchFileOperation fileOperation{};
             for(int sourceIndex : movePayload->itemsToMove) {
-                const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+                const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
 
                 Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                 Path targetPath(mCurrentDirectory);
 
                 if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
 
-                FileOp fileOperation{};
-                fileOperation.from = sourcePath;
-                fileOperation.to = targetPath;
-                fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                mFileOpsWorker->addFileOperation(fileOperation);
+                BatchFileOperation::Operation op;
+                op.from = sourcePath;
+                op.to = targetPath;
+                op.opType = FileOpType::FILE_OP_MOVE;
+                fileOperation.operations.push_back(op);
             }
+            mFileOpsWorker->addFileOperation(fileOperation);
         }
         ImGui::EndDragDropTarget();
     }
@@ -177,28 +181,32 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
 
     // paste items from clipboard
     if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+        BatchFileOperation fileOperation{};
         for(Path itemPath : mClipboard) {
-            FileOp fileOperation{};
-            fileOperation.from = itemPath;
-            fileOperation.to = mCurrentDirectory;
-            fileOperation.opType = FileOpType::FILE_OP_COPY;
-            mFileOpsWorker->addFileOperation(fileOperation);
+            BatchFileOperation::Operation op;
+            op.from = itemPath;
+            op.to = mCurrentDirectory;
+            op.opType = FileOpType::FILE_OP_COPY;
+            fileOperation.operations.push_back(op);
         }
+        mFileOpsWorker->addFileOperation(fileOperation);
     }
 
     // delete selected
     if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        BatchFileOperation fileOperation{};
         for(size_t i = 0; i < mSelected.size(); i++) {
             if(mSelected[i]) {
                 Path itemPath = mCurrentDirectory;
                 itemPath.appendName(mDisplayList[i].name);
 
-                FileOp fileOperation{};
-                fileOperation.from = itemPath;
-                fileOperation.opType = FileOpType::FILE_OP_DELETE;
-                mFileOpsWorker->addFileOperation(fileOperation);
+                BatchFileOperation::Operation op;
+                op.from = itemPath;
+                op.opType = FileOpType::FILE_OP_DELETE;
+                fileOperation.operations.push_back(op);
             }
         }
+        mFileOpsWorker->addFileOperation(fileOperation);
     }
 
     // get directory change events...
@@ -224,9 +232,9 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
             mUpdateFlag = true;
             mTableSortSpecs->SpecsDirty = false;
             if(mTableSortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
-                mSortDirection = FileOps::SortDirection::Ascending;
+                mSortDirection = FileSystem::SortDirection::Ascending;
             } else {
-                mSortDirection = FileOps::SortDirection::Descending;
+                mSortDirection = FileSystem::SortDirection::Descending;
             }
         }
     }
@@ -235,7 +243,7 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
         mUpdateFlag = false;
         if(mCurrentDirectory.isEmpty()) {
             std::vector<char> driveLetters;
-            FileOps::getDriveLetters(driveLetters);
+            FileSystem::getDriveLetters(driveLetters);
             mDriveList.clear();
             for(char driveLetter : driveLetters) {
                 DriveRecord driveRecord{};
@@ -248,15 +256,15 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
             }
             mDisplayListType = DisplayListType::DRIVE;
         } else {
-            if(FileOps::enumerateDirectory(mCurrentDirectory, mDisplayList)) {
+            if(FileSystem::enumerateDirectory(mCurrentDirectory, mDisplayList)) {
                 mDisplayListType = DisplayListType::DEFAULT;
             } else {
                 mDisplayListType = DisplayListType::PATH_NOT_FOUND_ERROR;
             }
         }
 
-        FileOps::sortByName(mSortDirection, mDisplayList);
-        FileOps::sortByType(mSortDirection, mDisplayList);
+        FileSystem::sortByName(mSortDirection, mDisplayList);
+        FileSystem::sortByType(mSortDirection, mDisplayList);
 
         mSelected.assign(mSelected.size(), false);
         mNumSelected = 0;
@@ -326,10 +334,11 @@ void BrowserWidget::directorySegments() {
                 memcpy(&voidPayload, payload->Data, payload->DataSize);
                 MovePayload* movePayload = (MovePayload*)voidPayload;
 
-                std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+                std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
 
+                BatchFileOperation fileOperation{};
                 for(int sourceIndex : movePayload->itemsToMove) {
-                    const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+                    const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
 
                     Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                     Path targetPath(mCurrentDirectory);
@@ -339,12 +348,13 @@ void BrowserWidget::directorySegments() {
 
                     if(!(sourcePath.isEmpty() && targetPath.isEmpty())) continue;
 
-                    FileOp fileOperation{};
-                    fileOperation.from = sourcePath;
-                    fileOperation.to = targetPath;
-                    fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                    mFileOpsWorker->addFileOperation(fileOperation);
+                    BatchFileOperation::Operation op;
+                    op.from = sourcePath;
+                    op.to = targetPath;
+                    op.opType = FileOpType::FILE_OP_MOVE;
+                    fileOperation.operations.push_back(op);
                 }
+                mFileOpsWorker->addFileOperation(fileOperation);
             }
             ImGui::EndDragDropTarget();
         }
@@ -362,7 +372,7 @@ void BrowserWidget::directorySegments() {
 }
 
 void BrowserWidget::directoryTable() {
-    std::vector<FileOps::Record>& displayList = mDisplayList;
+    std::vector<FileSystem::Record>& displayList = mDisplayList;
 
     mSelected.resize(displayList.size());
     mHighlighted.resize(displayList.size());
@@ -376,26 +386,26 @@ void BrowserWidget::directoryTable() {
         return;
     }
 
-    static const FileOps::FileAttributes allAttribs[] = {
-        FileOps::FileAttributes::ARCHIVE,
-        FileOps::FileAttributes::COMPRESSED,
-        FileOps::FileAttributes::DEVICE,
-        FileOps::FileAttributes::DIRECTORY,
-        FileOps::FileAttributes::ENCRYPTED,
-        FileOps::FileAttributes::HIDDEN,
-        FileOps::FileAttributes::INTEGRITY_STREAM,
-        FileOps::FileAttributes::NORMAL,
-        FileOps::FileAttributes::NOT_CONTENT_INDEXED,
-        FileOps::FileAttributes::NO_SCRUB_DATA,
-        FileOps::FileAttributes::OFFLINE,
-        FileOps::FileAttributes::READONLY,
-        FileOps::FileAttributes::RECALL_ON_DATA_ACCESS,
-        FileOps::FileAttributes::RECALL_ON_OPEN,
-        FileOps::FileAttributes::REPARSE_POINT,
-        FileOps::FileAttributes::SPARSE_FILE,
-        FileOps::FileAttributes::SYSTEM,
-        FileOps::FileAttributes::TEMPORARY,
-        FileOps::FileAttributes::VIRTUAL
+    static const FileSystem::FileAttributes allAttribs[] = {
+        FileSystem::FileAttributes::ARCHIVE,
+        FileSystem::FileAttributes::COMPRESSED,
+        FileSystem::FileAttributes::DEVICE,
+        FileSystem::FileAttributes::DIRECTORY,
+        FileSystem::FileAttributes::ENCRYPTED,
+        FileSystem::FileAttributes::HIDDEN,
+        FileSystem::FileAttributes::INTEGRITY_STREAM,
+        FileSystem::FileAttributes::NORMAL,
+        FileSystem::FileAttributes::NOT_CONTENT_INDEXED,
+        FileSystem::FileAttributes::NO_SCRUB_DATA,
+        FileSystem::FileAttributes::OFFLINE,
+        FileSystem::FileAttributes::READONLY,
+        FileSystem::FileAttributes::RECALL_ON_DATA_ACCESS,
+        FileSystem::FileAttributes::RECALL_ON_OPEN,
+        FileSystem::FileAttributes::REPARSE_POINT,
+        FileSystem::FileAttributes::SPARSE_FILE,
+        FileSystem::FileAttributes::SYSTEM,
+        FileSystem::FileAttributes::TEMPORARY,
+        FileSystem::FileAttributes::VIRTUAL
     };
 
     static ImGuiTableFlags tableFlags = 
@@ -450,7 +460,7 @@ void BrowserWidget::directoryTable() {
             std::string uniqueID = "##FileRecord" + std::to_string(i);
             ImGui::PushID(uniqueID.c_str());
 
-            const FileOps::Record& item = displayList[i];
+            const FileSystem::Record& item = displayList[i];
             bool isSelected = mSelected[i];
 
             ImGui::TableNextRow();
@@ -488,7 +498,7 @@ void BrowserWidget::directoryTable() {
                     if(item.isFile) {
                         Path filePath = mCurrentDirectory;
                         filePath.appendName(item.name);
-                        FileOps::openFile(filePath);
+                        FileSystem::openFile(filePath);
                     } else {
                         mCurrentDirectory.appendName(item.name);
                         mUpdateFlag = true;
@@ -530,22 +540,24 @@ void BrowserWidget::directoryTable() {
                     MovePayload* movePayload = (MovePayload*)voidPayload;
 
 
-                    std::vector<FileOps::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+                    std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
 
+                    BatchFileOperation fileOperation{};
                     for(int sourceIndex : movePayload->itemsToMove) {
-                        const FileOps::Record& sourceItem = sourceDisplayList[sourceIndex];
+                        const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
 
                         Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
                         Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
 
                         if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
 
-                        FileOp fileOperation{};
-                        fileOperation.from = sourcePath;
-                        fileOperation.to = targetPath;
-                        fileOperation.opType = FileOpType::FILE_OP_MOVE;
-                        mFileOpsWorker->addFileOperation(fileOperation);
+                        BatchFileOperation::Operation op;
+                        op.from = sourcePath;
+                        op.to = targetPath;
+                        op.opType = FileOpType::FILE_OP_MOVE;
+                        fileOperation.operations.push_back(op);
                     }
+                    mFileOpsWorker->addFileOperation(fileOperation);
                     mUpdateFlag = true;
                 }
 
@@ -579,85 +591,85 @@ void BrowserWidget::directoryTable() {
             ImGui::PopID();
             /*
             ImGui::TableSetColumnIndex(2);
-            for(int i = 0; i < FileOps::FileAttributesCount; i++) {
+            for(int i = 0; i < FileSystem::FileAttributesCount; i++) {
                 //ImGui::SameLine();
                 unsigned long attr = static_cast<unsigned long>(allAttribs[i]);
                 unsigned long actual = attr & item.attributes;
 
-                switch(static_cast<FileOps::FileAttributes>(actual)) {
-                    case FileOps::FileAttributes::DIRECTORY:
+                switch(static_cast<FileSystem::FileAttributes>(actual)) {
+                    case FileSystem::FileAttributes::DIRECTORY:
                     {
                         ImGui::Text("Directory | ");
                     } break;
-                    case FileOps::FileAttributes::ARCHIVE:
+                    case FileSystem::FileAttributes::ARCHIVE:
                     {
                         ImGui::Text("archive | ");
                     } break;
-                    case FileOps::FileAttributes::COMPRESSED:
+                    case FileSystem::FileAttributes::COMPRESSED:
                     {
                         ImGui::Text("compressed | ");
                     } break;
-                    case FileOps::FileAttributes::DEVICE:
+                    case FileSystem::FileAttributes::DEVICE:
                     {
                         ImGui::Text("device | ");
                     } break;
-                    case FileOps::FileAttributes::ENCRYPTED:
+                    case FileSystem::FileAttributes::ENCRYPTED:
                     {
                         ImGui::Text("encryted | ");
                     } break;
-                    case FileOps::FileAttributes::HIDDEN:
+                    case FileSystem::FileAttributes::HIDDEN:
                     {
                         ImGui::Text("hidden | ");
                     } break;
-                    case FileOps::FileAttributes::INTEGRITY_STREAM:
+                    case FileSystem::FileAttributes::INTEGRITY_STREAM:
                     {
                         ImGui::Text("integrity stream | ");
                     } break;
-                    case FileOps::FileAttributes::NORMAL:
+                    case FileSystem::FileAttributes::NORMAL:
                     {
                         ImGui::Text("normal | ");
                     } break;
-                    case FileOps::FileAttributes::NOT_CONTENT_INDEXED:
+                    case FileSystem::FileAttributes::NOT_CONTENT_INDEXED:
                     {
                         ImGui::Text("not indexed | ");
                     } break;
-                    case FileOps::FileAttributes::NO_SCRUB_DATA:
+                    case FileSystem::FileAttributes::NO_SCRUB_DATA:
                     {
                         ImGui::Text("no scrubs | ");
                     } break;
-                    case FileOps::FileAttributes::OFFLINE:
+                    case FileSystem::FileAttributes::OFFLINE:
                     {
                         ImGui::Text("offline | ");
                     } break;
-                    case FileOps::FileAttributes::READONLY:
+                    case FileSystem::FileAttributes::READONLY:
                     {
                         ImGui::Text("readonly | ");
                     } break;
-                    case FileOps::FileAttributes::RECALL_ON_DATA_ACCESS:
+                    case FileSystem::FileAttributes::RECALL_ON_DATA_ACCESS:
                     {
                         ImGui::Text("recall on data access | ");
                     } break;
-                    case FileOps::FileAttributes::RECALL_ON_OPEN:
+                    case FileSystem::FileAttributes::RECALL_ON_OPEN:
                     {
                         ImGui::Text("recall on open | ");
                     } break;
-                    case FileOps::FileAttributes::REPARSE_POINT:
+                    case FileSystem::FileAttributes::REPARSE_POINT:
                     {
                         ImGui::Text("Reparse point | ");
                     } break;
-                    case FileOps::FileAttributes::SPARSE_FILE:
+                    case FileSystem::FileAttributes::SPARSE_FILE:
                     {
                         ImGui::Text("Sparse file| ");
                     } break;
-                    case FileOps::FileAttributes::SYSTEM:
+                    case FileSystem::FileAttributes::SYSTEM:
                     {
                         ImGui::Text("System | ");
                     } break;
-                    case FileOps::FileAttributes::TEMPORARY:
+                    case FileSystem::FileAttributes::TEMPORARY:
                     {
                         ImGui::Text("Temporary | ");
                     } break;
-                    case FileOps::FileAttributes::VIRTUAL:
+                    case FileSystem::FileAttributes::VIRTUAL:
                     {
                         ImGui::Text("Virtual | ");
                     } break;
@@ -797,7 +809,7 @@ void BrowserWidget::updateSearch() {
             mHighlighted.assign(mHighlighted.size(), false);
             mCurrentHighlightIdx = -1;
             for(int i = 0; i < mDisplayList.size(); i++) {
-                FileOps::Record& item = mDisplayList[i];
+                FileSystem::Record& item = mDisplayList[i];
                 if(item.name.find(mSearchFilter) != std::string::npos) {
                     if(mCurrentHighlightIdx < 0) mCurrentHighlightIdx = i;
                     mHighlighted[i] = true;

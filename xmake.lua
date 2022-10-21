@@ -98,7 +98,7 @@ target("tests")
 
     add_files(
         "src/StringUtils.cpp",
-        "src/FileOps.cpp",
+        "src/FileSystem.cpp",
         "src/Path.cpp",
         "tests/main.cpp",
         "third_party/catch2/extras/catch_amalgamated.cpp"

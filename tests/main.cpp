@@ -8,25 +8,25 @@
 #include <fstream>
 #include <string.h>
 
-#include <FileOps.h>
+#include <FileSystem.h>
 #include <Path.h>
 #include <iostream>
 
 
-namespace fs = std::filesystem;
+namespace std_fs = std::filesystem;
 
-void createFile(fs::path filePath) {
+void createFile(std_fs::path filePath) {
     std::ofstream outputFile(filePath.u8string());
     outputFile.close();
 }
 
-std::vector<FileOps::Record> getItemsInDirectory(fs::path dir) {
-    std::vector<FileOps::Record> result;
-    FileOps::enumerateDirectory(Path(dir.u8string()), result);
+std::vector<FileSystem::Record> getItemsInDirectory(std_fs::path dir) {
+    std::vector<FileSystem::Record> result;
+    FileSystem::enumerateDirectory(Path(dir.u8string()), result);
     return result;
 }
 
-std::vector<std::string> getFilenamesInDirectory(fs::path dir) {
+std::vector<std::string> getFilenamesInDirectory(std_fs::path dir) {
     std::vector<std::string> result;
     for(const auto& item : getItemsInDirectory(dir)) {
         result.push_back(item.name);
@@ -35,12 +35,12 @@ std::vector<std::string> getFilenamesInDirectory(fs::path dir) {
     return result;
 }
 
-void refreshTestDirectory(fs::path TEST_PATH) {
-    if(fs::exists(TEST_PATH)) {
-        fs::remove_all(TEST_PATH);
+void refreshTestDirectory(std_fs::path TEST_PATH) {
+    if(std_fs::exists(TEST_PATH)) {
+        std_fs::remove_all(TEST_PATH);
     }
 
-    fs::create_directory(TEST_PATH);
+    std_fs::create_directory(TEST_PATH);
 }
 
 TEST_CASE( "File operations", "[simple]" ) {
@@ -50,12 +50,12 @@ TEST_CASE( "File operations", "[simple]" ) {
     }
 
     // make a dummy test direcory
-    fs::path TEST_PATH = fs::current_path() / "TEMP";
+    std_fs::path TEST_PATH = std_fs::current_path() / "TEMP";
     refreshTestDirectory(TEST_PATH);
 
     SECTION("list items in empty directory") {
-        std::vector<FileOps::Record> items;
-        bool success = FileOps::enumerateDirectory(TEST_PATH.u8string(), items);
+        std::vector<FileSystem::Record> items;
+        bool success = FileSystem::enumerateDirectory(TEST_PATH.u8string(), items);
         REQUIRE(success);
         REQUIRE(items.size() == 0);
     }
@@ -79,7 +79,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         // create some files
         std::vector<std::string> folderNames = { "test1", "folder1", "yee" };
         for(const auto& folderName : folderNames) {
-            fs::create_directory(TEST_PATH / folderName);
+            std_fs::create_directory(TEST_PATH / folderName);
         }
 
         std::vector<std::string> actualNames = getFilenamesInDirectory(TEST_PATH);
@@ -91,23 +91,23 @@ TEST_CASE( "File operations", "[simple]" ) {
     }
 
     SECTION("delete file") {
-        fs::path fileToDelete = TEST_PATH / "delete_me.txt";
+        std_fs::path fileToDelete = TEST_PATH / "delete_me.txt";
 
         createFile(fileToDelete);
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({"delete_me.txt"})));
 
-        bool wasDeleted = FileOps::deleteFileOrDirectory(fileToDelete.u8string(), false);
+        bool wasDeleted = FileSystem::deleteFileOrDirectory(fileToDelete.u8string(), false);
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
         REQUIRE(wasDeleted);
     }
 
     SECTION("delete directory") {
-        fs::path pathToDelete = TEST_PATH / "deleteme";
+        std_fs::path pathToDelete = TEST_PATH / "deleteme";
 
-        // TODO: replace with functions from FileOps::
-        fs::create_directory(pathToDelete);
+        // TODO: replace with functions from FileSystem::
+        std_fs::create_directory(pathToDelete);
 
-        bool wasDeleted = FileOps::deleteFileOrDirectory(pathToDelete.u8string(), false);
+        bool wasDeleted = FileSystem::deleteFileOrDirectory(pathToDelete.u8string(), false);
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
 
         REQUIRE(wasDeleted == true);
@@ -115,15 +115,15 @@ TEST_CASE( "File operations", "[simple]" ) {
 
     SECTION("move file") {
         const std::string filename = "move_me.txt";
-        fs::path targetPath = TEST_PATH / "targetPath";
-        fs::path fileToMove = TEST_PATH / filename;
+        std_fs::path targetPath = TEST_PATH / "targetPath";
+        std_fs::path fileToMove = TEST_PATH / filename;
 
-        fs::create_directory(targetPath);
+        std_fs::create_directory(targetPath);
         createFile(fileToMove);
 
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({"targetPath", filename })));
 
-        bool wasMoved = FileOps::moveFileOrDirectory(fileToMove.u8string(), targetPath.u8string());
+        bool wasMoved = FileSystem::moveFileOrDirectory(fileToMove.u8string(), targetPath.u8string());
         REQUIRE(wasMoved);
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({"targetPath"})));
         REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ filename })));
@@ -133,11 +133,11 @@ TEST_CASE( "File operations", "[simple]" ) {
         const std::string filename = "rename_me.txt";
         const std::string newName = "newname.txt";
 
-        fs::path fileToRename = TEST_PATH / filename;
+        std_fs::path fileToRename = TEST_PATH / filename;
         createFile(fileToRename);
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ filename })));
 
-        bool wasRenamed = FileOps::renameFileOrDirectory(fileToRename.u8string(), Util::Utf8ToWstring(newName));
+        bool wasRenamed = FileSystem::renameFileOrDirectory(fileToRename.u8string(), Util::Utf8ToWstring(newName));
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ newName })));
         REQUIRE(wasRenamed);
     }
@@ -151,7 +151,7 @@ TEST_CASE( "File operations", "[simple]" ) {
 
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(expectedNames));
 
-        FileOps::FileOperation op;
+        FileSystem::FileOperation op;
 
         op.init();
         for(const auto& fileName : expectedNames) {
@@ -163,9 +163,9 @@ TEST_CASE( "File operations", "[simple]" ) {
     }
 
     SECTION("Batch copy operations") {
-        fs::path targetPath = TEST_PATH / "target";
+        std_fs::path targetPath = TEST_PATH / "target";
 
-        fs::create_directories(targetPath);
+        std_fs::create_directories(targetPath);
 
         // create some files
         std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
@@ -175,7 +175,7 @@ TEST_CASE( "File operations", "[simple]" ) {
 
         REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
 
-        FileOps::FileOperation op;
+        FileSystem::FileOperation op;
 
         op.init();
         for(const auto& fileName : expectedNames) {
@@ -189,9 +189,9 @@ TEST_CASE( "File operations", "[simple]" ) {
     }
 
     SECTION("Batch move operations") {
-        fs::path targetPath = TEST_PATH / "target";
+        std_fs::path targetPath = TEST_PATH / "target";
 
-        fs::create_directories(targetPath);
+        std_fs::create_directories(targetPath);
 
         // create some files
         std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
@@ -201,7 +201,7 @@ TEST_CASE( "File operations", "[simple]" ) {
 
         REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
 
-        FileOps::FileOperation op;
+        FileSystem::FileOperation op;
 
         op.init();
         for(const auto& fileName : expectedNames) {
@@ -215,9 +215,9 @@ TEST_CASE( "File operations", "[simple]" ) {
     }
 
     SECTION("Batch mix operations") {
-        fs::path targetPath = TEST_PATH / "target";
+        std_fs::path targetPath = TEST_PATH / "target";
 
-        fs::create_directories(targetPath);
+        std_fs::create_directories(targetPath);
 
         // create some files
         std::vector<std::string> expectedNames = { "test1.txt", "somefile", "yee" };
@@ -227,7 +227,7 @@ TEST_CASE( "File operations", "[simple]" ) {
 
         REQUIRE_THAT(getFilenamesInDirectory(targetPath), Catch::Matchers::UnorderedEquals(std::vector<std::string>({})));
 
-        FileOps::FileOperation op;
+        FileSystem::FileOperation op;
 
         op.init();
         op.copy(Path((TEST_PATH / "test1.txt").u8string()), targetPath.u8string());
@@ -239,8 +239,8 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE_THAT(getFilenamesInDirectory(TEST_PATH), Catch::Matchers::UnorderedEquals(std::vector<std::string>({ "target", "test1.txt" })));
     }
 
-    if(fs::exists(TEST_PATH)) {
-        fs::remove_all(TEST_PATH);
+    if(std_fs::exists(TEST_PATH)) {
+        std_fs::remove_all(TEST_PATH);
     }
     CoUninitialize();
 }
@@ -279,7 +279,7 @@ TEST_CASE("Path", "[simple]") {
     }
 
     SECTION("Convert to absolute") {
-        std::string expectedAbsolute = fs::current_path().u8string();
+        std::string expectedAbsolute = std_fs::current_path().u8string();
         
         Path relativePath(".");
         relativePath.toAbsolute();

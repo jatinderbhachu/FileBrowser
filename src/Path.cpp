@@ -1,7 +1,7 @@
 #include "Path.h"
 
 #include "StringUtils.h"
-#include "FileOps.h"
+#include "FileSystem.h"
 
 #include <iostream>
 #include <assert.h>
@@ -131,7 +131,7 @@ void Path::appendName(const std::string& name) {
 void Path::toAbsolute() {
     if(mType == PATH_ABSOLUTE) return;
 
-    Path processPath = FileOps::getCurrentProcessPath();
+    Path processPath = FileSystem::getCurrentProcessPath();
     std::vector<std::string_view> baseSegments = processPath.getSegments();
 
     for(auto relSegment : mSegments) {

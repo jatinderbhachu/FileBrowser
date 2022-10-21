@@ -17,7 +17,7 @@
 
 
 #include "Path.h"
-#include "FileOps.h"
+#include "FileSystem.h"
 #include "BrowserWidget.h"
 
 #include "DefaultLayout.h"
@@ -235,28 +235,32 @@ void Application::run() {
             mFileOpsWorker.syncProgress();
 
             // display any in-progress operations
-            for(FileOp& op : mFileOpsWorker.mFileOperations) {
+            for(BatchFileOperation& op : mFileOpsWorker.mFileOperations) {
                 if(op.idx >= 0) {
-                    std::string fromLastSegment = op.from.getLastSegment();
-                    std::string toLastSegment = op.to.getLastSegment();
-                    switch(op.opType) {
-                        case FileOpType::FILE_OP_COPY:
-                            {
-                                ImGui::Text("Copying %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
-                            } break;
-                        case FileOpType::FILE_OP_MOVE:
-                            {
-                                ImGui::Text("Moving %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
-                            } break;
-                        case FileOpType::FILE_OP_DELETE:
-                            {
-                                ImGui::Text("Deleting %s", fromLastSegment.c_str());
-                            } break;
-                        case FileOpType::FILE_OP_RENAME:
-                            {
-                                ImGui::Text("Rename %s", fromLastSegment.c_str());
-                            } break;
-                    }
+                    //std::string fromLastSegment = op.from.getLastSegment();
+                    //std::string toLastSegment = op.to.getLastSegment();
+                    std::string fromLastSegment = "";
+                    std::string toLastSegment = "";
+                    //switch(op.opType) {
+                        //case FileOpType::FILE_OP_COPY:
+                            //{
+                                //ImGui::Text("Copying %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
+                            //} break;
+                        //case FileOpType::FILE_OP_MOVE:
+                            //{
+                                //ImGui::Text("Moving %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
+                            //} break;
+                        //case FileOpType::FILE_OP_DELETE:
+                            //{
+                                //ImGui::Text("Deleting %s", fromLastSegment.c_str());
+                            //} break;
+                        //case FileOpType::FILE_OP_RENAME:
+                            //{
+                                //ImGui::Text("Rename %s", fromLastSegment.c_str());
+                            //} break;
+                    //}
+
+                    ImGui::Text("Operation #%d - %d/%d", op.idx, op.currentProgress, op.totalProgress);
                     ImGui::SameLine();
                     ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
                 }

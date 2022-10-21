@@ -1,5 +1,5 @@
 #include "FileOpsWorker.h"
-#include "FileOps.h"
+#include "FileSystem.h"
 #include "Path.h"
 #include "FileOpsProgressSink.h"
 #include <memory>
@@ -22,82 +22,50 @@ void FileOpsWorker::Run() {
     std::mutex wakeMutex;
     printf("Starting worker thread..\n");
 
-    std::vector<FileOp> fileOpsBatch;
+    std::vector<BatchFileOperation> fileOpsBatch;
     while(mAlive.load()) {
-        FileOp fileOp;
+        BatchFileOperation batchOp;
 
-        if(WorkQueue.pop(fileOp)) {
+        if(WorkQueue.pop(batchOp)) {
 
-            mProgressSink->currentOperationIdx = fileOp.idx;
-
-            // do the file operation and register a progress sink to report progress
-            switch(fileOp.opType) {
-                case FileOpType::FILE_OP_COPY: 
-                {
-                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
-                    Path fromPath(fileOp.from); fromPath.toAbsolute();
-                    Path toPath(fileOp.to); toPath.toAbsolute();
-
-                    if(!FileOps::copyFileOrDirectory(fromPath, toPath, mProgressSink.get())) {
-                        FileOpProgress progress;
-                        progress.fileOpIdx = fileOp.idx;
-                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
-                        progress.currentProgress = 1;
-                        progress.totalProgress = 1;
-
-                        ResultQueue.push(progress);
-                    }
-                } break;
-                case FileOpType::FILE_OP_MOVE: 
-                {
-                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
-                    assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
-                    Path fromPath(fileOp.from); fromPath.toAbsolute();
-                    Path toPath(fileOp.to); toPath.toAbsolute();
-
-                    if(!FileOps::moveFileOrDirectory(fromPath, toPath, mProgressSink.get())) {
-                        FileOpProgress progress;
-                        progress.fileOpIdx = fileOp.idx;
-                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
-                        progress.currentProgress = 1;
-                        progress.totalProgress = 1;
-
-                        ResultQueue.push(progress);
-                    }
-                } break;
-                case FileOpType::FILE_OP_RENAME: 
-                {
-                    assert(!fileOp.from.isEmpty());
-                    Path fromPath(fileOp.from); fromPath.toAbsolute();
-
-                    if(!FileOps::renameFileOrDirectory(fromPath, fileOp.to.wstr(), mProgressSink.get())) {
-                        FileOpProgress progress;
-                        progress.fileOpIdx = fileOp.idx;
-                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
-                        progress.currentProgress = 1;
-                        progress.totalProgress = 1;
-
-                        ResultQueue.push(progress);
-                    }
-
-                } break;
-                case FileOpType::FILE_OP_DELETE: 
-                {
-                    assert(!fileOp.from.isEmpty());
-                    Path fromPath(fileOp.from); fromPath.toAbsolute();
-
-                    if(!FileOps::deleteFileOrDirectory(fromPath, true, mProgressSink.get())) {
-                        FileOpProgress progress;
-                        progress.fileOpIdx = fileOp.idx;
-                        progress.type = FileOpProgressType::FILE_OP_PROGRESS_FINISH; // TODO: replace with FAIL
-                        progress.currentProgress = 1;
-                        progress.totalProgress = 1;
-
-                        ResultQueue.push(progress);
-                    }
-                    
-                } break;
+            mProgressSink->currentOperationIdx = batchOp.idx;
+            FileSystem::FileOperation op;
+            op.init(mProgressSink.get());
+            for(BatchFileOperation::Operation fileOp : batchOp.operations) {
+                // do the file operation and register a progress sink to report progress
+                switch(fileOp.opType) {
+                    case FileOpType::FILE_OP_COPY: 
+                    {
+                        assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
+                        Path fromPath(fileOp.from); fromPath.toAbsolute();
+                        Path toPath(fileOp.to); toPath.toAbsolute();
+                        op.copy(fromPath, toPath);
+                    } break;
+                    case FileOpType::FILE_OP_MOVE: 
+                    {
+                        assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
+                        assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
+                        Path fromPath(fileOp.from); fromPath.toAbsolute();
+                        Path toPath(fileOp.to); toPath.toAbsolute();
+                        op.move(fromPath, toPath);
+                    } break;
+                    case FileOpType::FILE_OP_RENAME: 
+                    {
+                        assert(!fileOp.from.isEmpty());
+                        Path fromPath(fileOp.from); fromPath.toAbsolute();
+                        op.copy(fromPath, fileOp.to.str());
+                    } break;
+                    case FileOpType::FILE_OP_DELETE: 
+                    {
+                        assert(!fileOp.from.isEmpty());
+                        Path fromPath(fileOp.from); fromPath.toAbsolute();
+                        op.remove(fromPath);
+                    } break;
+                }
             }
+
+            op.allowUndo(true);
+            op.execute();
 
         } else {
             std::unique_lock<std::mutex> lock(wakeMutex);
@@ -125,7 +93,8 @@ FileOpsWorker::~FileOpsWorker() {
     mThread.join();
 }
 
-void FileOpsWorker::addFileOperation(FileOp newOp) {
+void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
+    if(newOp.operations.empty()) return; 
     // check if there is an open spot to add the file operation
     int newOpIdx = -1;
     for (int i = 0; i < mFileOperations.size(); i++) {
@@ -137,18 +106,19 @@ void FileOpsWorker::addFileOperation(FileOp newOp) {
 
     // allocate new index if there is no open spot
     if(newOpIdx < 0) {
-        mFileOperations.push_back(FileOp());
+        mFileOperations.push_back(BatchFileOperation());
         newOpIdx = mFileOperations.size() - 1;
     }
 
-    FileOp& op = mFileOperations[newOpIdx];
+    BatchFileOperation& op = mFileOperations[newOpIdx];
     newOp.idx = newOpIdx;
 
     WorkQueue.push(newOp);
 
     op = newOp;
-    op.from = newOp.from;
-    op.to = newOp.to;
+    op.operations = newOp.operations;
+    //op.from = newOp.from;
+    //op.to = newOp.to;
 
     mWakeCondition.notify_all();
     return;
@@ -157,7 +127,7 @@ void FileOpsWorker::addFileOperation(FileOp newOp) {
 void FileOpsWorker::syncProgress() {
     FileOpProgress result;
     while(ResultQueue.pop(result)) {
-        FileOp& op = mFileOperations[result.fileOpIdx];
+        BatchFileOperation& op = mFileOperations[result.fileOpIdx];
 
         if(result.type == FILE_OP_PROGRESS_FINISH) {
             CompleteFileOperation(op);
@@ -169,7 +139,7 @@ void FileOpsWorker::syncProgress() {
     }
 }
 
-void FileOpsWorker::CompleteFileOperation(const FileOp& fileOp) {
+void FileOpsWorker::CompleteFileOperation(const BatchFileOperation& fileOp) {
     assert(fileOp.idx >= 0);
 
     // just invalidate the file operation at that index

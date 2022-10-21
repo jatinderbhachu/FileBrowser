@@ -8,7 +8,7 @@ class FileOpProgressSink;
 
 struct IFileOperation;
 
-namespace FileOps {
+namespace FileSystem {
     struct Record {
         std::string name;
         bool isFile = false;
@@ -58,8 +58,8 @@ namespace FileOps {
 
 
     bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
-    void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
+    void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
     bool createDirectory(const Path& path);
 
     void getDriveLetters(std::vector<char>& out_driveLetters);

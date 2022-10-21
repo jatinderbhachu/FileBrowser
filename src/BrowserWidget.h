@@ -8,7 +8,7 @@
 
 struct ImDrawList;
 
-namespace FileOps {
+namespace FileSystem {
     struct Record;
 }
 
@@ -20,7 +20,7 @@ class BrowserWidget
 {
     struct MovePayload {
         Path sourcePath;
-        std::vector<FileOps::Record>* sourceDisplayList;
+        std::vector<FileSystem::Record>* sourceDisplayList;
         std::vector<int> itemsToMove;
     };
 
@@ -57,7 +57,7 @@ private:
 
 
     DisplayListType mDisplayListType = DisplayListType::DEFAULT;
-    std::vector<FileOps::Record> mDisplayList;
+    std::vector<FileSystem::Record> mDisplayList;
     std::vector<DriveRecord> mDriveList;
 
     std::vector<bool> mHighlighted;
@@ -73,7 +73,7 @@ private:
     std::vector<Path> mClipboard;
     MovePayload mMovePayload;
 
-    FileOps::SortDirection mSortDirection = FileOps::SortDirection::Descending;
+    FileSystem::SortDirection mSortDirection = FileSystem::SortDirection::Descending;
     ImGuiTableSortSpecs* mTableSortSpecs = nullptr;
 
     void* mDirChangeHandle = nullptr;

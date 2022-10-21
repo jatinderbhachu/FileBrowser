@@ -64,7 +64,6 @@ IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
     progress.fileOpIdx = currentOperationIdx;
     fileOpsWorker->ResultQueue.push(progress);
 
-
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PreRenameItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, PCWSTR /*pszNewName*/)

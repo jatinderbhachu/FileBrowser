@@ -1,4 +1,4 @@
-#include "FileOps.h"
+#include "FileSystem.h"
 #include "FileOpsProgressSink.h"
 #include <fileapi.h>
 
@@ -21,7 +21,7 @@
 #include "Path.h"
 #include "NaturalComparator.h"
 
-namespace FileOps {
+namespace FileSystem {
 
 void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
     if(direction == SortDirection::Ascending) {
@@ -255,7 +255,9 @@ void FileOperation::rename(const Path& itemPath, const std::string& newName) {
 }
 
 void FileOperation::allowUndo(bool allow) {
-    mFlags |= FOFX_ADDUNDORECORD | FOFX_RECYCLEONDELETE;
+    if(allow) {
+        mFlags |= FOFX_ADDUNDORECORD | FOFX_RECYCLEONDELETE;
+    }
 }
 
 void FileOperation::execute() {

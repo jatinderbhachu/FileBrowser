@@ -4,21 +4,24 @@
 
 #include <thread>
 
-enum FileOpType {
+enum class FileOpType {
     FILE_OP_COPY,
     FILE_OP_MOVE,
     FILE_OP_RENAME,
     FILE_OP_DELETE
 };
 
-class FileOp {
+class BatchFileOperation {
 public:
-    int idx = -1;
-    FileOpType opType;
-    Path from;
-    Path to;
+    struct Operation {
+        FileOpType opType;
+        Path from;
+        Path to;
+    };
+    std::vector<Operation> operations;
     int currentProgress = 0;
     int totalProgress = INT32_MAX;
+    int idx = -1;
 };
 
 enum FileOpProgressType {
@@ -40,19 +43,19 @@ public:
     FileOpsWorker();
     ~FileOpsWorker();
     
-    void addFileOperation(FileOp newOp);
+    void addFileOperation(BatchFileOperation newOp);
     void syncProgress();
-    std::vector<FileOp> mFileOperations;
+    std::vector<BatchFileOperation> mFileOperations;
 
     ThreadedQueue<FileOpProgress> ResultQueue;
 private:
 
     void Run();
 
-    void CompleteFileOperation(const FileOp& fileOp);
+    void CompleteFileOperation(const BatchFileOperation& fileOp);
 
     std::thread mThread;
-    ThreadedQueue<FileOp> WorkQueue;
+    ThreadedQueue<BatchFileOperation> WorkQueue;
     std::atomic_bool mAlive{ true };
     std::condition_variable mWakeCondition;
     std::unique_ptr<FileOpProgressSink> mProgressSink = nullptr;

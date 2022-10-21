@@ -1,6 +1,6 @@
 #include "CommandParser.h"
 #include "BrowserWidget.h"
-#include "FileOps.h"
+#include "FileSystem.h"
 #include <sstream>
 #include <unordered_map>
 #include <assert.h>
@@ -73,7 +73,7 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
                 Path dir = focusedWidget->getCurrentDirectory();
                 dir.appendName(cmd.args[0]);
 
-                bool success = FileOps::createDirectory(dir);
+                bool success = FileSystem::createDirectory(dir);
             } break;
         case CommandType::MAKE_DEBUG_DIR:
             {
@@ -83,7 +83,7 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
 
                 currentDirectory.appendName("browser_test");
 
-                // TODO: replace with functions from FileOps::
+                // TODO: replace with functions from FileSystem.h
 
                 // a folder with 1000 files
                 std::filesystem::path testPath(currentDirectory.str());
