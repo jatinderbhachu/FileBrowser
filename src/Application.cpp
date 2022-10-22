@@ -117,21 +117,18 @@ void Application::run() {
             mBrowserWidgets.push_back(BrowserWidget(Path(""), &mFileOpsWorker));
         }
 
-        bool isWidgetFocused = false;
         static std::vector<int> widgetsToClose;
         widgetsToClose.clear();
 
         // update browser widgets
         for(int i = 0; i < mBrowserWidgets.size(); i++) {
-            bool isOpenFlag = true;
+            mBrowserWidgets[i].update();
 
-            mBrowserWidgets[i].update(isWidgetFocused, isOpenFlag);
-
-            if(!isOpenFlag) {
+            if(!mBrowserWidgets[i].isOpen()) {
                 widgetsToClose.push_back(i);
             }
             
-            if(isWidgetFocused) mCurrentFocusedWidget = i;
+            if(mBrowserWidgets[i].isFocused()) mCurrentFocusedWidget = i;
         }
 
         // remove browser widgets that are flagged to be closed

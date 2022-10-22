@@ -53,7 +53,7 @@ void FileOpsWorker::Run() {
                     {
                         assert(!fileOp.from.isEmpty());
                         Path fromPath(fileOp.from); fromPath.toAbsolute();
-                        op.copy(fromPath, fileOp.to.str());
+                        op.rename(fromPath, fileOp.to.str());
                     } break;
                     case FileOpType::FILE_OP_DELETE: 
                     {

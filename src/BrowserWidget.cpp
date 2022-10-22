@@ -89,49 +89,51 @@ bool BeginDrapDropTargetWindow(const char* payload_type) {
     return false;
 }
 
-void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
+void BrowserWidget::acceptMovePayload(Path targetPath) {
+    const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
+    if(payload != nullptr) {
+        void* voidPayload = nullptr;
+
+        memcpy(&voidPayload, payload->Data, payload->DataSize);
+        MovePayload* movePayload = (MovePayload*)voidPayload;
+
+        std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+
+        BatchFileOperation fileOperation{};
+        for(int sourceIndex : movePayload->itemsToMove) {
+            const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
+
+            Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
+
+            if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
+
+            BatchFileOperation::Operation op;
+            op.from = sourcePath;
+            op.to = targetPath;
+            op.opType = FileOpType::FILE_OP_MOVE;
+            fileOperation.operations.push_back(op);
+        }
+        mFileOpsWorker->addFileOperation(fileOperation);
+    }
+}
+
+void BrowserWidget::update() {
     ImGuiIO& io = ImGui::GetIO();
 
     std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(mID));
 
     ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
 
-    if(!ImGui::Begin(widgetUniqueName.c_str(), &isOpenFlag, mainWindowFlags)){
+    if(!ImGui::Begin(widgetUniqueName.c_str(), &mIsOpen, mainWindowFlags)){
         ImGui::End();
         return;
     }
 
-    isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-
-    updateSearch();
+    mWasFocused = mIsFocused;
+    mIsFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
     if(BeginDrapDropTargetWindow(MOVE_PAYLOAD)) {
-        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
-        if(payload != nullptr) {
-            void* voidPayload = nullptr;
-
-            memcpy(&voidPayload, payload->Data, payload->DataSize);
-            MovePayload* movePayload = (MovePayload*)voidPayload;
-
-            std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
-
-            BatchFileOperation fileOperation{};
-            for(int sourceIndex : movePayload->itemsToMove) {
-                const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
-
-                Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
-                Path targetPath(mCurrentDirectory);
-
-                if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
-
-                BatchFileOperation::Operation op;
-                op.from = sourcePath;
-                op.to = targetPath;
-                op.opType = FileOpType::FILE_OP_MOVE;
-                fileOperation.operations.push_back(op);
-            }
-            mFileOpsWorker->addFileOperation(fileOperation);
-        }
+        acceptMovePayload(mCurrentDirectory);
         ImGui::EndDragDropTarget();
     }
 
@@ -164,50 +166,9 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
             } break;
     }
 
-    // TODO: following copy/delete operations should be batched together
-    // TODO: copy list of items to actual SYSTEM clipboard :)
+    updateSearch();
 
-    // copy selected items to "clipboard"
-    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
-        mClipboard.clear();
-        for(size_t i = 0; i < mSelected.size(); i++) {
-            if(mSelected[i]) {
-                Path itemPath = mCurrentDirectory;
-                itemPath.appendName(mDisplayList[i].name);
-                mClipboard.push_back(itemPath);
-            }
-        }
-    }
-
-    // paste items from clipboard
-    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
-        BatchFileOperation fileOperation{};
-        for(Path itemPath : mClipboard) {
-            BatchFileOperation::Operation op;
-            op.from = itemPath;
-            op.to = mCurrentDirectory;
-            op.opType = FileOpType::FILE_OP_COPY;
-            fileOperation.operations.push_back(op);
-        }
-        mFileOpsWorker->addFileOperation(fileOperation);
-    }
-
-    // delete selected
-    if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        BatchFileOperation fileOperation{};
-        for(size_t i = 0; i < mSelected.size(); i++) {
-            if(mSelected[i]) {
-                Path itemPath = mCurrentDirectory;
-                itemPath.appendName(mDisplayList[i].name);
-
-                BatchFileOperation::Operation op;
-                op.from = itemPath;
-                op.opType = FileOpType::FILE_OP_DELETE;
-                fileOperation.operations.push_back(op);
-            }
-        }
-        mFileOpsWorker->addFileOperation(fileOperation);
-    }
+    handleInput();
 
     // get directory change events...
     {
@@ -272,6 +233,8 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
         mHighlighted.assign(mHighlighted.size(), false);
         mCurrentHighlightIdx = -1;
 
+        mEditIdx = -1;
+        mEditInput.clear();
 
         if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
             FindCloseChangeNotification(mDirChangeHandle);
@@ -283,6 +246,85 @@ void BrowserWidget::update(bool& isFocused, bool& isOpenFlag) {
     }
 
     ImGui::End();
+}
+
+void BrowserWidget::handleInput() {
+    if(mIsFocused) {
+        if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            mSelected.assign(mSelected.size(), false);
+            mCurrentHighlightIdx = -1;
+
+            mNumSelected = 0;
+            if(!mSearchWindowOpen) {
+                mHighlighted.assign(mHighlighted.size(), false);
+            }
+
+            mEditIdx = -1;
+            mEditInput.clear();
+        }
+
+        // rename key
+        if(ImGui::IsKeyPressed(ImGuiKey_F2)) {
+            mEditIdx = mSelected.empty() ? -1 : mRangeSelectionStart;
+            mEditInput = mDisplayList[mEditIdx].name;
+            mSelected.assign(mSelected.size(), false);
+            mNumSelected = 0;
+        }
+
+        if(ImGui::IsKeyPressed(ImGuiKey_Slash) && !mSearchWindowOpen) {
+            // show a search window
+            mSearchWindowOpen = true;
+        }
+
+        // TODO: copy list of items to actual SYSTEM clipboard :)
+        // copy selected items to "clipboard"
+        if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+            mClipboard.clear();
+            for(size_t i = 0; i < mSelected.size(); i++) {
+                if(mSelected[i]) {
+                    Path itemPath = mCurrentDirectory;
+                    itemPath.appendName(mDisplayList[i].name);
+                    mClipboard.push_back(itemPath);
+                }
+            }
+        }
+
+        // paste items from clipboard
+        if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+            BatchFileOperation fileOperation{};
+            for(Path itemPath : mClipboard) {
+                BatchFileOperation::Operation op;
+                op.from = itemPath;
+                op.to = mCurrentDirectory;
+                op.opType = FileOpType::FILE_OP_COPY;
+                fileOperation.operations.push_back(op);
+            }
+            mFileOpsWorker->addFileOperation(fileOperation);
+        }
+
+        // delete selected
+        if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+            BatchFileOperation fileOperation{};
+            for(size_t i = 0; i < mSelected.size(); i++) {
+                if(mSelected[i]) {
+                    Path itemPath = mCurrentDirectory;
+                    itemPath.appendName(mDisplayList[i].name);
+
+                    BatchFileOperation::Operation op;
+                    op.from = itemPath;
+                    op.opType = FileOpType::FILE_OP_DELETE;
+                    fileOperation.operations.push_back(op);
+                }
+            }
+            mFileOpsWorker->addFileOperation(fileOperation);
+        }
+    }
+
+    // clicked away...
+    if(!mIsFocused && mWasFocused) {
+        mEditIdx = -1;
+        mEditInput.clear();
+    }
 }
 
 void BrowserWidget::directorySegments() {
@@ -327,35 +369,12 @@ void BrowserWidget::directorySegments() {
         }
 
         if(ImGui::BeginDragDropTarget()) {
-            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD);
-            if(payload != nullptr && payload->Data != nullptr) {
-                void* voidPayload = nullptr;
+            Path targetPath(mCurrentDirectory);
 
-                memcpy(&voidPayload, payload->Data, payload->DataSize);
-                MovePayload* movePayload = (MovePayload*)voidPayload;
+            int numPop = dirSegments.size() - i;
+            while(--numPop > 0) targetPath.popSegment();
+            acceptMovePayload(targetPath);
 
-                std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
-
-                BatchFileOperation fileOperation{};
-                for(int sourceIndex : movePayload->itemsToMove) {
-                    const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
-
-                    Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
-                    Path targetPath(mCurrentDirectory);
-
-                    int numPop = dirSegments.size() - i;
-                    while(--numPop > 0) targetPath.popSegment();
-
-                    if(!(sourcePath.isEmpty() && targetPath.isEmpty())) continue;
-
-                    BatchFileOperation::Operation op;
-                    op.from = sourcePath;
-                    op.to = targetPath;
-                    op.opType = FileOpType::FILE_OP_MOVE;
-                    fileOperation.operations.push_back(op);
-                }
-                mFileOpsWorker->addFileOperation(fileOperation);
-            }
             ImGui::EndDragDropTarget();
         }
 
@@ -436,23 +455,12 @@ void BrowserWidget::directoryTable() {
     ImGuiListClipper clipper;
     clipper.Begin(displayList.size());
 
-    bool isSelectingMultiple = io.KeyCtrl;
-    bool isSelectingRange = io.KeyShift;
-    bool isClearingSelection = ImGui::IsKeyPressed(ImGuiKey_Escape);
-
-    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && isClearingSelection) {
-        mSelected.assign(mSelected.size(), false);
-        mCurrentHighlightIdx = -1;
-
-        mNumSelected = 0;
-        if(!mSearchWindowOpen) {
-            mHighlighted.assign(mHighlighted.size(), false);
-        }
-    }
-
     mTableSortSpecs = ImGui::TableGetSortSpecs();
 
     ImGui::TableHeadersRow();
+
+    bool isSelectingMultiple = io.KeyCtrl;
+    bool isSelectingRange = io.KeyShift;
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     while(clipper.Step()) {
@@ -473,10 +481,14 @@ void BrowserWidget::directoryTable() {
                 } else if(isSelectingRange) {
                     int start, end = -1;
 
-                    if(mRangeSelectionStart > i) {
+                    if(mRangeSelectionStart < 0) {
+                        mRangeSelectionStart = i;
+                        start = i;
+                        end = i;
+                    } else if(mRangeSelectionStart > i) {
                         start = i;
                         end = mRangeSelectionStart + 1;
-                    } else {
+                    } else if(mRangeSelectionStart < i) {
                         start = mRangeSelectionStart;
                         end = i + 1;
                     }
@@ -494,7 +506,7 @@ void BrowserWidget::directoryTable() {
                     mRangeSelectionStart = i;
                 }
 
-                if(ImGui::IsMouseDoubleClicked(0)) {
+                if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                     if(item.isFile) {
                         Path filePath = mCurrentDirectory;
                         filePath.appendName(item.name);
@@ -532,35 +544,11 @@ void BrowserWidget::directoryTable() {
             }
 
             if(!item.isFile && ImGui::BeginDragDropTarget()) {
-                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(MOVE_PAYLOAD, ImGuiDragDropFlags_SourceAutoExpirePayload);
-                if(payload != nullptr) {
-                    void* voidPayload = nullptr;
+                Path targetPath(mCurrentDirectory); 
+                targetPath.appendName(item.name);
 
-                    memcpy(&voidPayload, payload->Data, payload->DataSize);
-                    MovePayload* movePayload = (MovePayload*)voidPayload;
-
-
-                    std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
-
-                    BatchFileOperation fileOperation{};
-                    for(int sourceIndex : movePayload->itemsToMove) {
-                        const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
-
-                        Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
-                        Path targetPath(mCurrentDirectory); targetPath.appendName(item.name);
-
-                        if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
-
-                        BatchFileOperation::Operation op;
-                        op.from = sourcePath;
-                        op.to = targetPath;
-                        op.opType = FileOpType::FILE_OP_MOVE;
-                        fileOperation.operations.push_back(op);
-                    }
-                    mFileOpsWorker->addFileOperation(fileOperation);
-                    mUpdateFlag = true;
-                }
-
+                acceptMovePayload(targetPath);
+                
                 ImGui::EndDragDropTarget();
             }
 
@@ -575,7 +563,35 @@ void BrowserWidget::directoryTable() {
             }
 
             ImGui::TableNextColumn();
-            ImGui::Text(item.name.c_str());
+
+            if(mEditIdx == i) {
+                int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
+
+                std::string inputID = "###EditInput" + std::to_string(i);
+                if(ImGui::InputText(inputID.c_str(), &mEditInput, inputFlags)) {
+                    // rename current selection to mEditInput
+                    BatchFileOperation batchOp;
+                    BatchFileOperation::Operation op;
+                    Path targetItem = mCurrentDirectory;
+                    targetItem.appendName(mDisplayList[mEditIdx].name);
+
+                    Path newName(mEditInput);
+                    
+                    op.opType = FileOpType::FILE_OP_RENAME;
+                    op.from = targetItem;
+                    op.to = newName;
+                    batchOp.operations.push_back(op);
+
+                    mFileOpsWorker->addFileOperation(batchOp);
+
+                    mEditIdx = -1;
+                }
+
+                if (ImGui::IsItemHovered() || (!ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
+                    ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
+            } else {
+                ImGui::Text(item.name.c_str());
+            }
 
             if(mHighlighted[i]) {
                 ImVec2 cursor = ImGui::GetCursorScreenPos();
@@ -780,20 +796,12 @@ void BrowserWidget::driveList() {
 }
 
 void BrowserWidget::updateSearch() {
-    bool isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-    if(ImGui::IsKeyPressed(ImGuiKey_Slash) && !mSearchWindowOpen && isFocused) {
-        // show a search window
-        mSearchWindowOpen = true;
-    }
-
     int searchWindowFlags = ImGuiWindowFlags_NoDecoration
         | ImGuiWindowFlags_NoDocking;
 
     if(mSearchWindowOpen) {
         float width = ImGui::GetWindowWidth();
         float height = ImGui::GetWindowHeight();
-
-        
 
         float lineHeight = ImGui::GetTextLineHeightWithSpacing();
         ImGui::SetNextWindowSize({width, lineHeight});
