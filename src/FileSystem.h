@@ -9,11 +9,6 @@ class FileOpProgressSink;
 struct IFileOperation;
 
 namespace FileSystem {
-    struct Record {
-        std::string name;
-        bool isFile = false;
-        unsigned long attributes;
-    };
 
     class FileOperation {
         public:
@@ -32,29 +27,31 @@ namespace FileSystem {
             unsigned long mFlags = 0;
     };
 
-    // https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
-    enum class FileAttributes {
-        ARCHIVE = 0x20,
-        COMPRESSED = 0x800,
-        DEVICE = 0x40,
-        DIRECTORY = 0x10,
-        ENCRYPTED = 0x4000,
-        HIDDEN = 0x2,
-        INTEGRITY_STREAM = 0x8000,
-        NORMAL = 0x80,
-        NOT_CONTENT_INDEXED = 0x2000,
-        NO_SCRUB_DATA = 0x20000,
-        OFFLINE = 0x1000,
-        READONLY = 0x1,
-        RECALL_ON_DATA_ACCESS = 0x400000,
-        RECALL_ON_OPEN = 0x40000,
-        REPARSE_POINT = 0x400,
-        SPARSE_FILE = 0x200,
-        SYSTEM = 0x4,
-        TEMPORARY = 0x100,
-        VIRTUAL = 0x10000
+    struct Timestamp {
+        uint16_t year;
+        uint16_t month;
+        uint16_t day;
+
+        uint16_t hour;
+        uint16_t minute;
+        bool isPM;
     };
-    constexpr int FileAttributesCount = 19;
+
+    // a file/folder
+    struct Record {
+        enum Attributes : int {
+            NONE        = 0,
+            DIRECTORY   = 1 << 0,
+            HIDDEN      = 1 << 1,
+        };
+
+        std::string name;
+        int attributes = Attributes::NONE;
+
+        Timestamp lastModified;
+        
+        inline bool isFile() const { return !(attributes & Attributes::DIRECTORY); }
+    };
 
 
     bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);

@@ -71,7 +71,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE_THAT(actualNames, Catch::Matchers::UnorderedEquals(expectedNames));
 
         for(const auto& item : getItemsInDirectory(TEST_PATH)) {
-            REQUIRE(item.isFile);
+            REQUIRE(item.isFile());
         }
     }
 
@@ -86,7 +86,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE_THAT(actualNames, Catch::Matchers::UnorderedEquals(folderNames));
 
         for(const auto& item : getItemsInDirectory(TEST_PATH)) {
-            REQUIRE(!item.isFile);
+            REQUIRE(!item.isFile());
         }
     }
 

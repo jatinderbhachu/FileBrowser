@@ -20,9 +20,16 @@ Path::Path(const std::string& pathStr)
     parse();
 }
 
+Path::Path(Path&& other)
+    : mText(std::move(other.mText)),
+    mSegments(std::move(other.mSegments)),
+    mType(other.mType)
+{
+}
 
-Path::Path(const Path& other) {
-    mText = other.str();
+Path::Path(const Path& other)
+    : mText(other.mText)
+{
     parse();
 }
 

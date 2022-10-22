@@ -33,9 +33,9 @@ void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems
 
 void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
     if(direction == SortDirection::Ascending) {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile < rhs.isFile; });
+        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile() < rhs.isFile(); });
     } else {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile > rhs.isFile; });
+        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile() > rhs.isFile(); });
     }
 }
 
@@ -91,11 +91,34 @@ bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItem
         Record file;
         file.name = filename;
 
-        file.attributes = findFileData.dwFileAttributes;
+        FILETIME lastWriteTime{};
+        FileTimeToLocalFileTime(&findFileData.ftLastWriteTime, &lastWriteTime);
+
+        SYSTEMTIME systemTime{};
+        FileTimeToSystemTime(&lastWriteTime, &systemTime);
+
+        file.lastModified.year   = systemTime.wYear;
+        file.lastModified.month  = systemTime.wMonth;
+        file.lastModified.day    = systemTime.wDay;
+
+
+        file.lastModified.isPM = systemTime.wHour < 12 ? false : true;
+
+        file.lastModified.hour = systemTime.wHour;
+        file.lastModified.hour %= 12;
+        if(file.lastModified.hour == 0) {
+            file.lastModified.hour = 12;
+        }
+        file.lastModified.minute = systemTime.wMinute;
+
+        //file.lastModified.second = systemTime.wSecond;
+
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            file.isFile = false;
-        } else {
-            file.isFile = true;
+            file.attributes |= Record::Attributes::DIRECTORY;
+        }
+
+        if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) {
+            file.attributes |= Record::Attributes::HIDDEN;
         }
 
         out_DirectoryItems.push_back(file);

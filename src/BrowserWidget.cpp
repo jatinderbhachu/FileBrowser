@@ -120,11 +120,12 @@ void BrowserWidget::acceptMovePayload(Path targetPath) {
 void BrowserWidget::update() {
     ImGuiIO& io = ImGui::GetIO();
 
-    std::string widgetUniqueName = std::string("BrowserWidget###" + std::to_string(mID));
+    const std::string windowTitle = mCurrentDirectory.isEmpty() ? "This PC" : mCurrentDirectory.getLastSegment();
+    std::string windowID = std::string(windowTitle + "###BrowserWidget" + std::to_string(mID));
 
     ImGuiWindowFlags mainWindowFlags = ImGuiWindowFlags_NoCollapse;
 
-    if(!ImGui::Begin(widgetUniqueName.c_str(), &mIsOpen, mainWindowFlags)){
+    if(!ImGui::Begin(windowID.c_str(), &mIsOpen, mainWindowFlags)){
         ImGui::End();
         return;
     }
@@ -405,28 +406,6 @@ void BrowserWidget::directoryTable() {
         return;
     }
 
-    static const FileSystem::FileAttributes allAttribs[] = {
-        FileSystem::FileAttributes::ARCHIVE,
-        FileSystem::FileAttributes::COMPRESSED,
-        FileSystem::FileAttributes::DEVICE,
-        FileSystem::FileAttributes::DIRECTORY,
-        FileSystem::FileAttributes::ENCRYPTED,
-        FileSystem::FileAttributes::HIDDEN,
-        FileSystem::FileAttributes::INTEGRITY_STREAM,
-        FileSystem::FileAttributes::NORMAL,
-        FileSystem::FileAttributes::NOT_CONTENT_INDEXED,
-        FileSystem::FileAttributes::NO_SCRUB_DATA,
-        FileSystem::FileAttributes::OFFLINE,
-        FileSystem::FileAttributes::READONLY,
-        FileSystem::FileAttributes::RECALL_ON_DATA_ACCESS,
-        FileSystem::FileAttributes::RECALL_ON_OPEN,
-        FileSystem::FileAttributes::REPARSE_POINT,
-        FileSystem::FileAttributes::SPARSE_FILE,
-        FileSystem::FileAttributes::SYSTEM,
-        FileSystem::FileAttributes::TEMPORARY,
-        FileSystem::FileAttributes::VIRTUAL
-    };
-
     static ImGuiTableFlags tableFlags = 
         ImGuiTableFlags_SizingStretchSame 
         | ImGuiTableFlags_Resizable 
@@ -435,7 +414,7 @@ void BrowserWidget::directoryTable() {
         | ImGuiTableFlags_Sortable;
 
     // early out if table is being clipped
-    if(!ImGui::BeginTable("DirectoryList", 2, tableFlags)) {
+    if(!ImGui::BeginTable("DirectoryList", 3, tableFlags)) {
         ImGui::EndTable();
         return;
     }
@@ -451,6 +430,8 @@ void BrowserWidget::directoryTable() {
 
     int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
     ImGui::TableSetupColumn("Name", nameColumnFlags);
+
+    ImGui::TableSetupColumn("Last Modified", nameColumnFlags);
 
     ImGuiListClipper clipper;
     clipper.Begin(displayList.size());
@@ -507,7 +488,7 @@ void BrowserWidget::directoryTable() {
                 }
 
                 if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    if(item.isFile) {
+                    if(item.isFile()) {
                         Path filePath = mCurrentDirectory;
                         filePath.appendName(item.name);
                         FileSystem::openFile(filePath);
@@ -543,7 +524,7 @@ void BrowserWidget::directoryTable() {
                 }
             }
 
-            if(!item.isFile && ImGui::BeginDragDropTarget()) {
+            if(!item.isFile() && ImGui::BeginDragDropTarget()) {
                 Path targetPath(mCurrentDirectory); 
                 targetPath.appendName(item.name);
 
@@ -554,7 +535,7 @@ void BrowserWidget::directoryTable() {
 
             ImGui::SameLine(0.0f, 0.0f);
 
-            if(item.isFile) {
+            if(item.isFile()) {
                 ImGui::Text(ICON_FK_FILE_TEXT);
             } else {
                 ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(222, 199, 53, 255));
@@ -564,6 +545,7 @@ void BrowserWidget::directoryTable() {
 
             ImGui::TableNextColumn();
 
+            // Edit file name
             if(mEditIdx == i) {
                 int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
 
@@ -604,99 +586,17 @@ void BrowserWidget::directoryTable() {
                 }
             }
 
-            ImGui::PopID();
-            /*
-            ImGui::TableSetColumnIndex(2);
-            for(int i = 0; i < FileSystem::FileAttributesCount; i++) {
-                //ImGui::SameLine();
-                unsigned long attr = static_cast<unsigned long>(allAttribs[i]);
-                unsigned long actual = attr & item.attributes;
+            ImGui::TableNextColumn();
+            ImGui::Text("%u-%02u-%02u %02u:%02u %s",
+                    item.lastModified.year,
+                    item.lastModified.month,
+                    item.lastModified.day,
+                    item.lastModified.hour,
+                    item.lastModified.minute,
+                    item.lastModified.isPM ? "PM" : "AM");
 
-                switch(static_cast<FileSystem::FileAttributes>(actual)) {
-                    case FileSystem::FileAttributes::DIRECTORY:
-                    {
-                        ImGui::Text("Directory | ");
-                    } break;
-                    case FileSystem::FileAttributes::ARCHIVE:
-                    {
-                        ImGui::Text("archive | ");
-                    } break;
-                    case FileSystem::FileAttributes::COMPRESSED:
-                    {
-                        ImGui::Text("compressed | ");
-                    } break;
-                    case FileSystem::FileAttributes::DEVICE:
-                    {
-                        ImGui::Text("device | ");
-                    } break;
-                    case FileSystem::FileAttributes::ENCRYPTED:
-                    {
-                        ImGui::Text("encryted | ");
-                    } break;
-                    case FileSystem::FileAttributes::HIDDEN:
-                    {
-                        ImGui::Text("hidden | ");
-                    } break;
-                    case FileSystem::FileAttributes::INTEGRITY_STREAM:
-                    {
-                        ImGui::Text("integrity stream | ");
-                    } break;
-                    case FileSystem::FileAttributes::NORMAL:
-                    {
-                        ImGui::Text("normal | ");
-                    } break;
-                    case FileSystem::FileAttributes::NOT_CONTENT_INDEXED:
-                    {
-                        ImGui::Text("not indexed | ");
-                    } break;
-                    case FileSystem::FileAttributes::NO_SCRUB_DATA:
-                    {
-                        ImGui::Text("no scrubs | ");
-                    } break;
-                    case FileSystem::FileAttributes::OFFLINE:
-                    {
-                        ImGui::Text("offline | ");
-                    } break;
-                    case FileSystem::FileAttributes::READONLY:
-                    {
-                        ImGui::Text("readonly | ");
-                    } break;
-                    case FileSystem::FileAttributes::RECALL_ON_DATA_ACCESS:
-                    {
-                        ImGui::Text("recall on data access | ");
-                    } break;
-                    case FileSystem::FileAttributes::RECALL_ON_OPEN:
-                    {
-                        ImGui::Text("recall on open | ");
-                    } break;
-                    case FileSystem::FileAttributes::REPARSE_POINT:
-                    {
-                        ImGui::Text("Reparse point | ");
-                    } break;
-                    case FileSystem::FileAttributes::SPARSE_FILE:
-                    {
-                        ImGui::Text("Sparse file| ");
-                    } break;
-                    case FileSystem::FileAttributes::SYSTEM:
-                    {
-                        ImGui::Text("System | ");
-                    } break;
-                    case FileSystem::FileAttributes::TEMPORARY:
-                    {
-                        ImGui::Text("Temporary | ");
-                    } break;
-                    case FileSystem::FileAttributes::VIRTUAL:
-                    {
-                        ImGui::Text("Virtual | ");
-                    } break;
-                    default:
-                    {
-                        ImGui::Text("");
-                    }
-                }
-                break;
-            }
-            */
+
+            ImGui::PopID();
         }
     }
 

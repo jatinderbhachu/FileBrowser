@@ -40,17 +40,18 @@ Size=652,349
 Collapsed=0
 
 [Window][###BrowserWidget0]
-Pos=639,19
-Size=641,626
+Pos=638,0
+Size=642,590
 Collapsed=0
+DockId=0x00000006,0
 
 [Window][###BrowserWidget1]
-Pos=0,19
-Size=637,626
+Pos=0,0
+Size=636,590
 Collapsed=0
+DockId=0x00000005,0
 
 [Window][###1]
-Pos=0,0
 Size=611,590
 Collapsed=0
 DockId=0x00000003,0
@@ -59,7 +60,7 @@ DockId=0x00000003,0
 Pos=613,0
 Size=667,590
 Collapsed=0
-DockId=0x00000004,0
+DockId=0x00000006,0
 
 [Window][ContainerWindow]
 Pos=0,0
@@ -175,11 +176,23 @@ RefScale=13
 Column 0  Width=14
 Column 1  Weight=1.0000 Sort=0^
 
+[Table][0x3123A00B,2]
+RefScale=13
+Column 0  Width=14
+Column 1  Weight=1.0000 Sort=0^
+
+[Table][0xE095060D,2]
+RefScale=13
+Column 0  Width=14
+Column 1  Weight=1.0000 Sort=0^
+
 [Docking][Data]
-DockSpace     ID=0x49A721FC Window=0xF33A4BB8 Pos=0,0 Size=1280,720 Split=Y
-  DockNode    ID=0x00000001 Parent=0x49A721FC SizeRef=1280,590 Split=X Selected=0x64158E87
-    DockNode  ID=0x00000003 Parent=0x00000001 SizeRef=611,608 Selected=0x5975A737
-    DockNode  ID=0x00000004 Parent=0x00000001 SizeRef=667,608 CentralNode=1 Selected=0x64158E87
-  DockNode    ID=0x00000002 Parent=0x49A721FC SizeRef=1280,128 Selected=0x90677DF4
+DockSpace       ID=0x49A721FC Window=0xF33A4BB8 Pos=0,0 Size=1280,720 Split=Y
+  DockNode      ID=0x00000001 Parent=0x49A721FC SizeRef=1280,590 Split=X Selected=0x64158E87
+    DockNode    ID=0x00000003 Parent=0x00000001 SizeRef=611,608 Selected=0x5975A737
+    DockNode    ID=0x00000004 Parent=0x00000001 SizeRef=667,608 Split=X Selected=0x64158E87
+      DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=636,590 Selected=0x2FF9EED8
+      DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=642,590 CentralNode=1 Selected=0x1299C768
+  DockNode      ID=0x00000002 Parent=0x49A721FC SizeRef=1280,128 Selected=0x90677DF4
 
 )";
