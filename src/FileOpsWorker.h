@@ -25,8 +25,9 @@ public:
 };
 
 enum FileOpProgressType {
-    FILE_OP_PROGRESS_UPDATE,
-    FILE_OP_PROGRESS_FINISH,
+    FILE_OP_PROGRESS_UPDATE = 0,
+    FILE_OP_PROGRESS_FINISH_SUCCESS,
+    FILE_OP_PROGRESS_FINISH_ERROR,
 };
 
 struct FileOpProgress {
@@ -45,14 +46,17 @@ public:
     
     void addFileOperation(BatchFileOperation newOp);
     void syncProgress();
+
+    inline int numOperationsInProgress() const { return mOperationsInProgress; }
     std::vector<BatchFileOperation> mFileOperations;
 
     ThreadedQueue<FileOpProgress> ResultQueue;
 private:
-
     void Run();
 
-    void CompleteFileOperation(const BatchFileOperation& fileOp);
+    std::vector<BatchFileOperation> mHistory;
+
+    int mOperationsInProgress = 0;
 
     std::thread mThread;
     ThreadedQueue<BatchFileOperation> WorkQueue;

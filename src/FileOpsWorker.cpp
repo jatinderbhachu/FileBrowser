@@ -95,6 +95,7 @@ FileOpsWorker::~FileOpsWorker() {
 
 void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
     if(newOp.operations.empty()) return; 
+
     // check if there is an open spot to add the file operation
     int newOpIdx = -1;
     for (int i = 0; i < mFileOperations.size(); i++) {
@@ -111,15 +112,12 @@ void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
     }
 
     BatchFileOperation& op = mFileOperations[newOpIdx];
-    newOp.idx = newOpIdx;
-
-    WorkQueue.push(newOp);
-
-    op = newOp;
+    op.idx = newOpIdx;
     op.operations = newOp.operations;
-    //op.from = newOp.from;
-    //op.to = newOp.to;
 
+    mOperationsInProgress++;
+
+    WorkQueue.push(op);
     mWakeCondition.notify_all();
     return;
 }
@@ -129,21 +127,23 @@ void FileOpsWorker::syncProgress() {
     while(ResultQueue.pop(result)) {
         BatchFileOperation& op = mFileOperations[result.fileOpIdx];
 
-        if(result.type == FILE_OP_PROGRESS_FINISH) {
-            CompleteFileOperation(op);
-        } else {
-            op.currentProgress = result.currentProgress;
-            op.totalProgress = result.totalProgress;
+        switch(result.type) {
+            case FILE_OP_PROGRESS_UPDATE: 
+                {
+                    op.currentProgress = result.currentProgress;
+                    op.totalProgress = result.totalProgress;
+                } break;
+            case FILE_OP_PROGRESS_FINISH_SUCCESS:
+            case FILE_OP_PROGRESS_FINISH_ERROR: 
+                {
+                    mOperationsInProgress--;
+
+                    // just invalidate the file operation at that index
+                    op.idx = -1;
+                } break;
+            default:
+                break;
         }
- 
     }
 }
-
-void FileOpsWorker::CompleteFileOperation(const BatchFileOperation& fileOp) {
-    assert(fileOp.idx >= 0);
-
-    // just invalidate the file operation at that index
-    mFileOperations[fileOp.idx].idx = -1;
-}
-
 

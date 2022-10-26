@@ -94,7 +94,7 @@ void Application::run() {
 
         ImGuiWindowFlags containerWindowFlags = ImGuiWindowFlags_NoDocking;
 
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
@@ -227,42 +227,37 @@ void Application::run() {
         //ImGui::End();
 
         {
-            ImGui::Begin("File ops progress");
+            int statusBarFlags = ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoDocking;
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+            float height = ImGui::GetFrameHeight();
+
+            //ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Set window background to red
+            ImGui::BeginViewportSideBar("##StatusBar", viewport, ImGuiDir_Down, height, window_flags);
 
             // consume result queue
             mFileOpsWorker.syncProgress();
 
-            // display any in-progress operations
+            ImGui::BeginMenuBar();
+
+            if(mFileOpsWorker.numOperationsInProgress() <= 0) {
+                ImGui::Text("IDLE");
+            } else {
+                ImGui::Text(" %d Operation(s) in progress |", mFileOpsWorker.numOperationsInProgress());
+            }
+
+            // display the first in-progress file operation
             for(BatchFileOperation& op : mFileOpsWorker.mFileOperations) {
                 if(op.idx >= 0) {
-                    //std::string fromLastSegment = op.from.getLastSegment();
-                    //std::string toLastSegment = op.to.getLastSegment();
-                    std::string fromLastSegment = "";
-                    std::string toLastSegment = "";
-                    //switch(op.opType) {
-                        //case FileOpType::FILE_OP_COPY:
-                            //{
-                                //ImGui::Text("Copying %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
-                            //} break;
-                        //case FileOpType::FILE_OP_MOVE:
-                            //{
-                                //ImGui::Text("Moving %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
-                            //} break;
-                        //case FileOpType::FILE_OP_DELETE:
-                            //{
-                                //ImGui::Text("Deleting %s", fromLastSegment.c_str());
-                            //} break;
-                        //case FileOpType::FILE_OP_RENAME:
-                            //{
-                                //ImGui::Text("Rename %s", fromLastSegment.c_str());
-                            //} break;
-                    //}
-
-                    ImGui::Text("Operation #%d - %d/%d", op.idx, op.currentProgress, op.totalProgress);
+                    ImGui::Text("#%d - %d/%d", op.idx, op.currentProgress, op.totalProgress);
                     ImGui::SameLine();
                     ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
+                    break;
                 }
             }
+
+            ImGui::EndMenuBar();
+            //ImGui::PopStyleColor();
 
             ImGui::End();
         }

@@ -9,7 +9,10 @@
 #include <windows.h>
 
 
-void DirectoryWatcher::update() {
+bool DirectoryWatcher::update() {
+
+    bool wasUpdated = false;
+
     DWORD waitStatus;
     waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
 
@@ -27,6 +30,7 @@ void DirectoryWatcher::update() {
     }
 
     if(mUpdateDirectory) {
+        wasUpdated = true;
         mUpdateDirectory = false;
         mRecords.clear();
         errors = FileSystem::enumerateDirectory(mDirectory, mRecords);
@@ -53,6 +57,8 @@ void DirectoryWatcher::update() {
 
         mRecords.sortByType(mSortDirection);
     }
+
+    return wasUpdated;
 }
 
 void DirectoryWatcher::changeDirectory(const Path& newPath) {

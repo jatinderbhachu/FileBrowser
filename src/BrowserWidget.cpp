@@ -250,7 +250,9 @@ void BrowserWidget::update() {
         mEditInput.clear();
     }
 
-    mDirectoryWatcher.update();
+    if(mDirectoryWatcher.update()) {
+        mSelection.clear();
+    }
 
     ImGui::End();
 }
@@ -473,7 +475,6 @@ void BrowserWidget::directoryTable() {
                 } else if(isSelectingRange) {
                     mSelection.selectRange(i);
                 } else {
-                    mSelection.clear();
                     mSelection.selectOne(i);
                 }
 

@@ -16,7 +16,7 @@ class DirectoryWatcher {
 public:
     void setSort(DirectorySortFlags flags, FileSystem::SortDirection);
     void changeDirectory(const Path& newPath);
-    void update();
+    bool update();
 
     Path mDirectory;
 

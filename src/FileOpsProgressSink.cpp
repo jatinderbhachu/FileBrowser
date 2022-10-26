@@ -60,7 +60,7 @@ IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
     assert(currentOperationIdx != -1);
 
     FileOpProgress progress{};
-    progress.type = FILE_OP_PROGRESS_FINISH;
+    progress.type = FILE_OP_PROGRESS_FINISH_SUCCESS;
     progress.fileOpIdx = currentOperationIdx;
     fileOpsWorker->ResultQueue.push(progress);
 
