@@ -23,19 +23,52 @@
 
 namespace FileSystem {
 
-void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
+void SOARecord::sortByName(SortDirection direction) {
     if(direction == SortDirection::Ascending) {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return NaturalComparator(rhs.name, lhs.name); });
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return NaturalComparator(names[rhs], names[lhs]); 
+        });
     } else {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return NaturalComparator(lhs.name, rhs.name); });
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return NaturalComparator(names[lhs], names[rhs]); 
+        });
     }
 }
 
-void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems) {
+void SOARecord::sortByType(SortDirection direction) {
     if(direction == SortDirection::Ascending) {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile() < rhs.isFile(); });
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return !(attributes[lhs] & Attributes::DIRECTORY) < !(attributes[rhs] & Attributes::DIRECTORY);
+        });
     } else {
-        std::sort(out_DirectoryItems.begin(), out_DirectoryItems.end(), [](const Record& lhs, const Record& rhs) { return lhs.isFile() > rhs.isFile(); });
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return !(attributes[lhs] & Attributes::DIRECTORY) > !(attributes[rhs] & Attributes::DIRECTORY);
+        });
+    }
+}
+
+
+void SOARecord::sortByLastModified(SortDirection direction) {
+    if(direction == SortDirection::Ascending) {
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return lastModifiedNumbers[lhs] > lastModifiedNumbers[rhs];
+        });
+    } else {
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return lastModifiedNumbers[lhs] < lastModifiedNumbers[rhs];
+        });
+    }
+}
+
+void SOARecord::sortBySize(SortDirection direction) {
+    if(direction == SortDirection::Ascending) {
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return sizes[lhs] > sizes[rhs];
+        });
+    } else {
+        std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
+                return sizes[lhs] < sizes[rhs];
+        });
     }
 }
 
@@ -60,8 +93,7 @@ void openFile(const Path& path) {
     ShellExecuteW(0, 0, path.wstr().c_str(), 0, 0, SW_SHOW);
 }
 
-// path must be an absolute path
-bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems) {
+bool enumerateDirectory(const Path& path, SOARecord& out_DirectoryItems) {
     if(path.isEmpty()) return false;
     if(!doesPathExist(path)) return false;
 
@@ -71,15 +103,19 @@ bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItem
     HANDLE hFind;
 
     const std::string& pathStr = path.str();
-    std::string dir = pathStr + "/*";
-    std::wstring wString = Util::Utf8ToWstring(dir);
+    const std::string dir = pathStr + "/*";
+    const std::wstring wString = Util::Utf8ToWstring(dir);
 
-    hFind = FindFirstFileW(wString.c_str(), &findFileData);
+    hFind = FindFirstFileExW(wString.c_str(), FindExInfoBasic, &findFileData, FindExSearchNameMatch, NULL, FIND_FIRST_EX_LARGE_FETCH);
 
     if(hFind == INVALID_HANDLE_VALUE) {
         printf("Can't find dir %s\n", dir.data());
         return false;
     }
+
+    out_DirectoryItems.clear();
+
+    size_t counter = 0;
 
     do {
         std::string filename = Util::WstringToUtf8(findFileData.cFileName);
@@ -88,40 +124,46 @@ bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItem
         // do not include system files
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) continue;
 
-        Record file;
-        file.name = filename;
-
         FILETIME lastWriteTime{};
         FileTimeToLocalFileTime(&findFileData.ftLastWriteTime, &lastWriteTime);
 
         SYSTEMTIME systemTime{};
         FileTimeToSystemTime(&lastWriteTime, &systemTime);
 
-        file.lastModified.year   = systemTime.wYear;
-        file.lastModified.month  = systemTime.wMonth;
-        file.lastModified.day    = systemTime.wDay;
+        Timestamp lastModified;
+        
+        lastModified.year   = systemTime.wYear;
+        lastModified.month  = systemTime.wMonth;
+        lastModified.day    = systemTime.wDay;
 
+        lastModified.isPM = systemTime.wHour < 12 ? false : true;
 
-        file.lastModified.isPM = systemTime.wHour < 12 ? false : true;
-
-        file.lastModified.hour = systemTime.wHour;
-        file.lastModified.hour %= 12;
-        if(file.lastModified.hour == 0) {
-            file.lastModified.hour = 12;
+        lastModified.hour = systemTime.wHour;
+        lastModified.hour %= 12;
+        if(lastModified.hour == 0) {
+            lastModified.hour = 12;
         }
-        file.lastModified.minute = systemTime.wMinute;
 
-        //file.lastModified.second = systemTime.wSecond;
+        lastModified.minute = systemTime.wMinute;
+        uint64_t lastModifiedN = (static_cast<uint64_t>(lastWriteTime.dwHighDateTime) << 32) | static_cast<uint64_t>(lastWriteTime.dwLowDateTime);
 
+        int attribute = 0;
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            file.attributes |= Record::Attributes::DIRECTORY;
+            attribute |= SOARecord::Attributes::DIRECTORY;
         }
 
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) {
-            file.attributes |= Record::Attributes::HIDDEN;
+            attribute |= SOARecord::Attributes::HIDDEN;
         }
 
-        out_DirectoryItems.push_back(file);
+        uint64_t size = (static_cast<uint64_t>(findFileData.nFileSizeHigh) << 32) | static_cast<uint64_t>(findFileData.nFileSizeLow);
+
+        out_DirectoryItems.indexes.push_back(counter++);
+        out_DirectoryItems.names.push_back(filename);
+        out_DirectoryItems.attributes.push_back(attribute);
+        out_DirectoryItems.lastModifiedDates.push_back(lastModified);
+        out_DirectoryItems.lastModifiedNumbers.push_back(lastModifiedN);
+        out_DirectoryItems.sizes.push_back(size);
     } while(FindNextFileW(hFind, &findFileData));
 
     FindClose(hFind);

@@ -1,6 +1,5 @@
 #pragma once
-#include <codecvt>
-#include <string.h>
+#include <string>
 
 namespace Util {
 

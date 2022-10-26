@@ -2,6 +2,7 @@
 
 #include "Path.h"
 #include "SortDirection.h"
+#include "DirectoryWatcher.h"
 
 #include <vector>
 #include <unordered_map>
@@ -9,10 +10,11 @@
 struct ImDrawList;
 
 namespace FileSystem {
-    struct Record;
+    struct SOARecord;
 }
 
 class FileOpsWorker;
+class DirectoryWatcher;
 
 struct ImGuiTableSortSpecs;
 
@@ -20,7 +22,7 @@ class BrowserWidget
 {
     struct MovePayload {
         Path sourcePath;
-        std::vector<FileSystem::Record>* sourceDisplayList;
+        FileSystem::SOARecord* sourceDisplayList;
         std::vector<int> itemsToMove;
     };
 
@@ -58,10 +60,11 @@ private:
     void handleInput();
 
     FileOpsWorker* mFileOpsWorker;
+    DirectoryWatcher mDirectoryWatcher;
     Path mCurrentDirectory;
+    Path mPreviousDirectory;
 
     DisplayListType mDisplayListType = DisplayListType::DEFAULT;
-    std::vector<FileSystem::Record> mDisplayList;
     std::vector<DriveRecord> mDriveList;
 
     // SEARCH
@@ -80,7 +83,7 @@ private:
     std::string mEditInput;
     int mEditIdx = -1;
 
-    bool mUpdateFlag = true;
+    bool mDirectoryChanged = true;
 
     bool mIsOpen = true;
     bool mIsFocused = false;
@@ -89,10 +92,7 @@ private:
     std::vector<Path> mClipboard;
     MovePayload mMovePayload;
 
-    FileSystem::SortDirection mSortDirection = FileSystem::SortDirection::Descending;
     ImGuiTableSortSpecs* mTableSortSpecs = nullptr;
-
-    void* mDirChangeHandle = nullptr;
 
     int mID;
     inline static int IDCounter = 0;

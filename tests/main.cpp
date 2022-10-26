@@ -12,17 +12,30 @@
 #include <Path.h>
 #include <iostream>
 
+#include <chrono>
 
 namespace std_fs = std::filesystem;
+
+struct Record {
+    std::string name;
+    bool isFile;
+};
 
 void createFile(std_fs::path filePath) {
     std::ofstream outputFile(filePath.u8string());
     outputFile.close();
 }
 
-std::vector<FileSystem::Record> getItemsInDirectory(std_fs::path dir) {
-    std::vector<FileSystem::Record> result;
-    FileSystem::enumerateDirectory(Path(dir.u8string()), result);
+std::vector<Record> getItemsInDirectory(std_fs::path dir) {
+    std::vector<Record> result;
+    FileSystem::SOARecord records;
+    FileSystem::enumerateDirectory(Path(dir.u8string()), records);
+    for(int i = 0; i < records.size(); i++) {
+        Record r{};
+        r.name = records.getName(i);
+        r.isFile = records.isFile(i);
+        result.push_back(r);
+    }
     return result;
 }
 
@@ -54,7 +67,7 @@ TEST_CASE( "File operations", "[simple]" ) {
     refreshTestDirectory(TEST_PATH);
 
     SECTION("list items in empty directory") {
-        std::vector<FileSystem::Record> items;
+        FileSystem::SOARecord items;
         bool success = FileSystem::enumerateDirectory(TEST_PATH.u8string(), items);
         REQUIRE(success);
         REQUIRE(items.size() == 0);
@@ -71,7 +84,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE_THAT(actualNames, Catch::Matchers::UnorderedEquals(expectedNames));
 
         for(const auto& item : getItemsInDirectory(TEST_PATH)) {
-            REQUIRE(item.isFile());
+            REQUIRE(item.isFile);
         }
     }
 
@@ -86,7 +99,7 @@ TEST_CASE( "File operations", "[simple]" ) {
         REQUIRE_THAT(actualNames, Catch::Matchers::UnorderedEquals(folderNames));
 
         for(const auto& item : getItemsInDirectory(TEST_PATH)) {
-            REQUIRE(!item.isFile());
+            REQUIRE(!item.isFile);
         }
     }
 
@@ -246,7 +259,6 @@ TEST_CASE( "File operations", "[simple]" ) {
 }
 
 TEST_CASE("Path", "[simple]") {
-
     SECTION("absolute path") {
         Path path("C:/abs/path");
         REQUIRE(path.getType() == Path::PATH_ABSOLUTE);
@@ -364,5 +376,4 @@ TEST_CASE("Path", "[simple]") {
         REQUIRE(path.str() == "C:\\abs\\relative");
         REQUIRE(path.getSegments().size() == 3);
     }
-
 }

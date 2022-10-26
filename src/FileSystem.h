@@ -37,26 +37,44 @@ namespace FileSystem {
         bool isPM;
     };
 
-    // a file/folder
-    struct Record {
+    struct SOARecord {
         enum Attributes : int {
             NONE        = 0,
             DIRECTORY   = 1 << 0,
             HIDDEN      = 1 << 1,
         };
 
-        std::string name;
-        int attributes = Attributes::NONE;
+        std::vector<size_t>         indexes;
+        std::vector<std::string>    names;
+        std::vector<int>            attributes;
+        std::vector<Timestamp>      lastModifiedDates;
+        std::vector<uint64_t>       lastModifiedNumbers;
+        std::vector<uint64_t>       sizes;
 
-        Timestamp lastModified;
-        
-        inline bool isFile() const { return !(attributes & Attributes::DIRECTORY); }
+        inline void clear() {
+            indexes.clear();
+            names.clear();
+            attributes.clear();
+            lastModifiedDates.clear();
+            lastModifiedNumbers.clear();
+            sizes.clear();
+        }
+
+        inline size_t size() { return indexes.size(); }
+
+        inline const std::string&   getName(size_t i)               { return names[indexes[i]]; }
+        inline const bool           isFile(size_t i)                { return !(attributes[indexes[i]] & Attributes::DIRECTORY); }
+        inline const Timestamp&     getLastModifiedDate(size_t i)   { return lastModifiedDates[indexes[i]]; }
+        inline const uint64_t&      getLastModifiedNumber(size_t i) { return lastModifiedNumbers[indexes[i]]; }
+        inline const uint64_t       getSize(size_t i)               { return sizes[indexes[i]]; }
+
+        void sortByName(SortDirection);
+        void sortByType(SortDirection);
+        void sortByLastModified(SortDirection);
+        void sortBySize(SortDirection);
     };
 
-
-    bool enumerateDirectory(const Path& path, std::vector<Record>& out_DirectoryItems);
-    void sortByType(SortDirection direction, std::vector<Record>& out_DirectoryItems);
-    void sortByName(SortDirection direction, std::vector<Record>& out_DirectoryItems);
+    bool enumerateDirectory(const Path& path, SOARecord& out_DirectoryItems);
     bool createDirectory(const Path& path);
 
     void getDriveLetters(std::vector<char>& out_driveLetters);

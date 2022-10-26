@@ -96,9 +96,8 @@ void CommandParser::execute(const std::string& input, BrowserWidget* focusedWidg
 
                 if(!std::filesystem::exists(thousandFilesPath)) {
                     std::filesystem::create_directory(thousandFilesPath);
-                    for(int i = 0; i < 1000; i++) {
+                    for(int i = 0; i < 10000; i++) {
                         std::ofstream outputFile((thousandFilesPath / std::to_string(i)).string());
-                        outputFile << ".";
                         outputFile.close();
                     }
                 }

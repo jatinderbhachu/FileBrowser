@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "imgui_internal.h"
+#include "tracy/Tracy.hpp"
 
 #include <IconsForkAwesome.h>
 
@@ -279,6 +280,8 @@ void Application::run() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(mWindow);
+
+        FrameMark;
     }
 }
 

@@ -5,6 +5,9 @@
 #include <regex>
 #include "FileSystem.h"
 #include "FileOpsWorker.h"
+#include "DirectoryWatcher.h"
+
+#include <tracy/Tracy.hpp>
 
 #include <IconsForkAwesome.h>
 
@@ -15,26 +18,45 @@
 
 inline static const char* MOVE_PAYLOAD = "MOVE_PAYLOAD";
 
+inline static const char* DISPLAY_COLUMN_ICON = "Icon##DisplayColumn";
+inline static const char* DISPLAY_COLUMN_NAME = "Name##DisplayColumn";
+inline static const char* DISPLAY_COLUMN_LAST_MODIFIED = "LastModified##DisplayColumn";
+inline static const char* DISPLAY_COLUMN_SIZE = "Size##DisplayColumn";
+
+inline static ImGuiID DISPLAY_COLUMN_NAME_ID;
+inline static ImGuiID DISPLAY_COLUMN_LAST_MODIFIED_ID;
+inline static ImGuiID DISPLAY_COLUMN_SIZE_ID;
+
+
+inline static std::string PrettyPrintSize(uint64_t size) {
+    for(auto unit : { " B", " KB", " MB", " GB", " TB", " PB", " EB", " ZB" }) {
+        if(size < 1024.0) return std::string(std::to_string(size) + unit);
+
+        size /= 1024.0;
+    }
+    return std::string(std::to_string(size) + " B");
+}
+
 BrowserWidget::BrowserWidget(const Path& path, FileOpsWorker* fileOpsWorker) 
     : mCurrentDirectory(path),
-    mUpdateFlag(true),
+    mDirectoryChanged(true),
     mFileOpsWorker(fileOpsWorker)
 {
+    mDirectoryWatcher.changeDirectory(mCurrentDirectory);
     mID = IDCounter++;
     if(FileSystem::doesPathExist(path)) {
         setCurrentDirectory(path);
     } else {
-        std::vector<char> driveLetters;
-        FileSystem::getDriveLetters(driveLetters);
-
-        assert(!driveLetters.empty());
-        std::string rootDrive = std::string(1, driveLetters[0]) + ":\\";
-        setCurrentDirectory(Path(rootDrive));
+        setCurrentDirectory(FileSystem::getCurrentProcessPath());
     }
+
+    DISPLAY_COLUMN_NAME_ID          = ImHashStr(DISPLAY_COLUMN_NAME,            strlen(DISPLAY_COLUMN_NAME), 0);
+    DISPLAY_COLUMN_LAST_MODIFIED_ID = ImHashStr(DISPLAY_COLUMN_LAST_MODIFIED,   strlen(DISPLAY_COLUMN_LAST_MODIFIED), 0);
+    DISPLAY_COLUMN_SIZE_ID          = ImHashStr(DISPLAY_COLUMN_SIZE,            strlen(DISPLAY_COLUMN_SIZE), 0);
 }
 
 void BrowserWidget::setCurrentDirectory(const Path& path) {
-    mUpdateFlag = true;
+    mDirectoryChanged = true;
     mCurrentDirectory = path;
 }
 
@@ -50,14 +72,17 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         if(mSelected[i]) itemsToRename.push_back(i);
     }
 
+
+    FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
+
     BatchFileOperation fileOperation{};
     for(int itemToRename : itemsToRename) {
-        FileSystem::Record& item = mDisplayList[itemToRename];
+        const std::string& name = displayList.getName(itemToRename);
 
         Path sourcePath(mCurrentDirectory);
-        sourcePath.appendName(item.name);
+        sourcePath.appendName(name);
 
-        std::string newName = std::regex_replace( item.name, std::regex(from), to );
+        std::string newName = std::regex_replace( name, std::regex(from), to );
         Path targetPath(newName);
 
         BatchFileOperation::Operation op;
@@ -97,13 +122,13 @@ void BrowserWidget::acceptMovePayload(Path targetPath) {
         memcpy(&voidPayload, payload->Data, payload->DataSize);
         MovePayload* movePayload = (MovePayload*)voidPayload;
 
-        std::vector<FileSystem::Record>& sourceDisplayList = *movePayload->sourceDisplayList;
+        FileSystem::SOARecord& sourceDisplayList = *movePayload->sourceDisplayList;
 
         BatchFileOperation fileOperation{};
         for(int sourceIndex : movePayload->itemsToMove) {
-            const FileSystem::Record& sourceItem = sourceDisplayList[sourceIndex];
+            const std::string& sourceItemName = sourceDisplayList.getName(sourceIndex);
 
-            Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItem.name);
+            Path sourcePath(movePayload->sourcePath); sourcePath.appendName(sourceItemName);
 
             if(sourcePath.isEmpty() || targetPath.isEmpty()) continue;
 
@@ -143,13 +168,13 @@ void BrowserWidget::update() {
     // up directory button
     if(ImGui::Button("..")) {
         mCurrentDirectory.popSegment();
-        mUpdateFlag = true;
+        mDirectoryChanged = true;
     }
 
     ImGui::SameLine();
 
     if(ImGui::Button("Refresh")) {
-        mUpdateFlag = true;
+        mDirectoryChanged = true;
     }
 
     switch(mDisplayListType) {
@@ -171,38 +196,30 @@ void BrowserWidget::update() {
 
     handleInput();
 
-    // get directory change events...
-    {
-        DWORD waitStatus;
-        waitStatus = WaitForSingleObject(mDirChangeHandle, 0);
-
-        switch(waitStatus) {
-            case WAIT_OBJECT_0:
-                {
-                    mUpdateFlag = true;
-                    FindNextChangeNotification(mDirChangeHandle);
-                } break;
-            default:
-                {
-                } break;
-        }
-    }
-
-    // TODO: should check which columns to sort by. For now just sort by file name
     if(mTableSortSpecs != nullptr) {
         if(mTableSortSpecs->SpecsDirty && mTableSortSpecs->Specs != nullptr) {
-            mUpdateFlag = true;
-            mTableSortSpecs->SpecsDirty = false;
-            if(mTableSortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending) {
-                mSortDirection = FileSystem::SortDirection::Ascending;
-            } else {
-                mSortDirection = FileSystem::SortDirection::Descending;
+            for(int i = 0; i < mTableSortSpecs->SpecsCount; i++) {
+                FileSystem::SortDirection dir = mTableSortSpecs->Specs[i].SortDirection == ImGuiSortDirection_Ascending 
+                    ? FileSystem::SortDirection::Ascending : FileSystem::SortDirection::Descending;
+
+                switch(mTableSortSpecs->Specs[i].ColumnIndex) {
+                    case 1:  // name
+                        {
+                            mDirectoryWatcher.setSort(DirectorySortFlags::DIRECTORY_SORT_NAME, dir);
+                        } break;
+                    case 2:  // date
+                        {
+                            mDirectoryWatcher.setSort(DirectorySortFlags::DIRECTORY_SORT_DATE, dir);
+                        } break;
+                }
             }
+
+            mTableSortSpecs->SpecsDirty = false;
         }
     }
 
-    if(mUpdateFlag) {
-        mUpdateFlag = false;
+    if(mDirectoryChanged) {
+        mDirectoryChanged = false;
         if(mCurrentDirectory.isEmpty()) {
             std::vector<char> driveLetters;
             FileSystem::getDriveLetters(driveLetters);
@@ -218,15 +235,13 @@ void BrowserWidget::update() {
             }
             mDisplayListType = DisplayListType::DRIVE;
         } else {
-            if(FileSystem::enumerateDirectory(mCurrentDirectory, mDisplayList)) {
+            if(FileSystem::doesPathExist(mCurrentDirectory)) {
                 mDisplayListType = DisplayListType::DEFAULT;
+                mDirectoryWatcher.changeDirectory(mCurrentDirectory);
             } else {
                 mDisplayListType = DisplayListType::PATH_NOT_FOUND_ERROR;
             }
         }
-
-        FileSystem::sortByName(mSortDirection, mDisplayList);
-        FileSystem::sortByType(mSortDirection, mDisplayList);
 
         mSelected.assign(mSelected.size(), false);
         mNumSelected = 0;
@@ -236,20 +251,16 @@ void BrowserWidget::update() {
 
         mEditIdx = -1;
         mEditInput.clear();
-
-        if(mDirChangeHandle != INVALID_HANDLE_VALUE) {
-            FindCloseChangeNotification(mDirChangeHandle);
-        }
-
-        mDirChangeHandle = FindFirstChangeNotificationW(mCurrentDirectory.wstr().data(), FALSE, 
-                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
-                );
     }
+
+    mDirectoryWatcher.update();
 
     ImGui::End();
 }
 
 void BrowserWidget::handleInput() {
+    FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
+
     if(mIsFocused) {
         if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             mSelected.assign(mSelected.size(), false);
@@ -267,7 +278,7 @@ void BrowserWidget::handleInput() {
         // rename key
         if(ImGui::IsKeyPressed(ImGuiKey_F2)) {
             mEditIdx = mSelected.empty() ? -1 : mRangeSelectionStart;
-            mEditInput = mDisplayList[mEditIdx].name;
+            mEditInput = displayList.getName(mEditIdx);
             mSelected.assign(mSelected.size(), false);
             mNumSelected = 0;
         }
@@ -284,7 +295,7 @@ void BrowserWidget::handleInput() {
             for(size_t i = 0; i < mSelected.size(); i++) {
                 if(mSelected[i]) {
                     Path itemPath = mCurrentDirectory;
-                    itemPath.appendName(mDisplayList[i].name);
+                    itemPath.appendName(displayList.getName(i));
                     mClipboard.push_back(itemPath);
                 }
             }
@@ -309,7 +320,7 @@ void BrowserWidget::handleInput() {
             for(size_t i = 0; i < mSelected.size(); i++) {
                 if(mSelected[i]) {
                     Path itemPath = mCurrentDirectory;
-                    itemPath.appendName(mDisplayList[i].name);
+                    itemPath.appendName(displayList.getName(i));
 
                     BatchFileOperation::Operation op;
                     op.from = itemPath;
@@ -345,10 +356,11 @@ void BrowserWidget::directorySegments() {
     ImVec2 cursorPos = ImGui::GetCursorPos();
 
     if(ImGui::Selectable(uniqueID.c_str(), false, ImGuiSelectableFlags_None | ImGuiSelectableFlags_AllowItemOverlap, text_size)) {
+        mPreviousDirectory = mCurrentDirectory;
         while(!mCurrentDirectory.isEmpty()) 
             mCurrentDirectory.popSegment();
 
-        mUpdateFlag = true;
+        mDirectoryChanged = true;
     }
 
     ImGui::SameLine();
@@ -365,8 +377,9 @@ void BrowserWidget::directorySegments() {
 
         if(ImGui::Selectable(uniqueID.c_str(), false, ImGuiSelectableFlags_None | ImGuiSelectableFlags_AllowItemOverlap, text_size)) {
             int numPop = dirSegments.size() - i;
+            mPreviousDirectory = mCurrentDirectory;
             while(--numPop > 0) mCurrentDirectory.popSegment();
-            mUpdateFlag = true;
+            mDirectoryChanged = true;
         }
 
         if(ImGui::BeginDragDropTarget()) {
@@ -392,7 +405,7 @@ void BrowserWidget::directorySegments() {
 }
 
 void BrowserWidget::directoryTable() {
-    std::vector<FileSystem::Record>& displayList = mDisplayList;
+    FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
 
     mSelected.resize(displayList.size());
     mHighlighted.resize(displayList.size());
@@ -409,12 +422,14 @@ void BrowserWidget::directoryTable() {
     static ImGuiTableFlags tableFlags = 
         ImGuiTableFlags_SizingStretchSame 
         | ImGuiTableFlags_Resizable 
+        | ImGuiTableFlags_Hideable
         | ImGuiTableFlags_NoPadInnerX
         | ImGuiTableFlags_ContextMenuInBody 
+        | ImGuiTableFlags_Reorderable
         | ImGuiTableFlags_Sortable;
 
     // early out if table is being clipped
-    if(!ImGui::BeginTable("DirectoryList", 3, tableFlags)) {
+    if(!ImGui::BeginTable("DirectoryList", 4, tableFlags)) {
         ImGui::EndTable();
         return;
     }
@@ -422,16 +437,19 @@ void BrowserWidget::directoryTable() {
     int iconColumnFlags = 
         ImGuiTableColumnFlags_NoHeaderLabel 
         | ImGuiTableColumnFlags_WidthFixed 
+        | ImGuiTableColumnFlags_NoReorder
         | ImGuiTableColumnFlags_NoResize 
+        | ImGuiTableColumnFlags_NoHide 
         | ImGuiTableColumnFlags_IndentDisable
         | ImGuiTableColumnFlags_NoSort;
+
     ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
-    ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_ICON, iconColumnFlags, iconColumnSize.x);
 
-    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
-    ImGui::TableSetupColumn("Name", nameColumnFlags);
-
-    ImGui::TableSetupColumn("Last Modified", nameColumnFlags);
+    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending | ImGuiTableColumnFlags_NoHide;
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_NAME, nameColumnFlags);
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_LAST_MODIFIED, ImGuiTableColumnFlags_IndentDisable);
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_SIZE, ImGuiTableColumnFlags_IndentDisable);
 
     ImGuiListClipper clipper;
     clipper.Begin(displayList.size());
@@ -443,14 +461,19 @@ void BrowserWidget::directoryTable() {
     bool isSelectingMultiple = io.KeyCtrl;
     bool isSelectingRange = io.KeyShift;
 
+
     ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImGui::PushID("##FileRecords");
     while(clipper.Step()) {
         for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-            std::string uniqueID = "##FileRecord" + std::to_string(i);
-            ImGui::PushID(uniqueID.c_str());
+            ImGui::PushID(i);
 
-            const FileSystem::Record& item = displayList[i];
             bool isSelected = mSelected[i];
+
+            const std::string& itemName = displayList.getName(i);
+            const bool itemIsFile = displayList.isFile(i);
+            const FileSystem::Timestamp& itemLastModified = displayList.getLastModifiedDate(i);
+            const uint64_t itemSize = displayList.getSize(i);
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -488,13 +511,14 @@ void BrowserWidget::directoryTable() {
                 }
 
                 if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    if(item.isFile()) {
+                    if(itemIsFile) {
                         Path filePath = mCurrentDirectory;
-                        filePath.appendName(item.name);
+                        filePath.appendName(itemName);
                         FileSystem::openFile(filePath);
                     } else {
-                        mCurrentDirectory.appendName(item.name);
-                        mUpdateFlag = true;
+                        mPreviousDirectory = mCurrentDirectory;
+                        mCurrentDirectory.appendName(itemName);
+                        mDirectoryChanged = true;
                     }
                 }
             }
@@ -507,7 +531,7 @@ void BrowserWidget::directoryTable() {
                     if(isSelected) {
                         mMovePayload.itemsToMove.clear();
                         mMovePayload.sourcePath = mCurrentDirectory;
-                        mMovePayload.sourceDisplayList = &mDisplayList;
+                        mMovePayload.sourceDisplayList = &displayList;
 
                         for(int j = 0; j < mSelected.size(); j++) {
                             if(mSelected[j]) mMovePayload.itemsToMove.push_back(j); 
@@ -524,9 +548,9 @@ void BrowserWidget::directoryTable() {
                 }
             }
 
-            if(!item.isFile() && ImGui::BeginDragDropTarget()) {
+            if(!itemIsFile && ImGui::BeginDragDropTarget()) {
                 Path targetPath(mCurrentDirectory); 
-                targetPath.appendName(item.name);
+                targetPath.appendName(itemName);
 
                 acceptMovePayload(targetPath);
                 
@@ -535,7 +559,7 @@ void BrowserWidget::directoryTable() {
 
             ImGui::SameLine(0.0f, 0.0f);
 
-            if(item.isFile()) {
+            if(itemIsFile) {
                 ImGui::Text(ICON_FK_FILE_TEXT);
             } else {
                 ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(222, 199, 53, 255));
@@ -549,13 +573,12 @@ void BrowserWidget::directoryTable() {
             if(mEditIdx == i) {
                 int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
 
-                std::string inputID = "###EditInput" + std::to_string(i);
-                if(ImGui::InputText(inputID.c_str(), &mEditInput, inputFlags)) {
+                if(ImGui::InputText("###EditInput", &mEditInput, inputFlags)) {
                     // rename current selection to mEditInput
                     BatchFileOperation batchOp;
                     BatchFileOperation::Operation op;
                     Path targetItem = mCurrentDirectory;
-                    targetItem.appendName(mDisplayList[mEditIdx].name);
+                    targetItem.appendName(itemName);
 
                     Path newName(mEditInput);
                     
@@ -572,7 +595,7 @@ void BrowserWidget::directoryTable() {
                 if (ImGui::IsItemHovered() || (!ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
                     ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
             } else {
-                ImGui::Text(item.name.c_str());
+                ImGui::Text(itemName.c_str());
             }
 
             if(mHighlighted[i]) {
@@ -588,17 +611,22 @@ void BrowserWidget::directoryTable() {
 
             ImGui::TableNextColumn();
             ImGui::Text("%u-%02u-%02u %02u:%02u %s",
-                    item.lastModified.year,
-                    item.lastModified.month,
-                    item.lastModified.day,
-                    item.lastModified.hour,
-                    item.lastModified.minute,
-                    item.lastModified.isPM ? "PM" : "AM");
+                    itemLastModified.year,
+                    itemLastModified.month,
+                    itemLastModified.day,
+                    itemLastModified.hour,
+                    itemLastModified.minute,
+                    itemLastModified.isPM ? "PM" : "AM");
 
+            ImGui::TableNextColumn();
+            if(itemIsFile) {
+                ImGui::TextUnformatted(PrettyPrintSize(itemSize).c_str());
+            }
 
             ImGui::PopID();
         }
     }
+    ImGui::PopID();
 
     clipper.End();
 
@@ -646,7 +674,7 @@ void BrowserWidget::driveList() {
     ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
     ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
 
-    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortDescending;
+    int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortAscending;
     ImGui::TableSetupColumn("Name", nameColumnFlags);
 
     ImGuiListClipper clipper;
@@ -670,8 +698,11 @@ void BrowserWidget::driveList() {
             ImGui::TableNextColumn();
             if(ImGui::Selectable("##selectable", isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
                 if(ImGui::IsMouseDoubleClicked(0)) {
+                    mPreviousDirectory = mCurrentDirectory;
+
                     mCurrentDirectory.appendName(std::string(1, item.letter) + ":");
-                    mUpdateFlag = true;
+                    
+                    mDirectoryChanged = true;
                 }
             }
 
@@ -696,6 +727,8 @@ void BrowserWidget::driveList() {
 }
 
 void BrowserWidget::updateSearch() {
+    FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
+
     int searchWindowFlags = ImGuiWindowFlags_NoDecoration
         | ImGuiWindowFlags_NoDocking;
 
@@ -716,9 +749,9 @@ void BrowserWidget::updateSearch() {
         if(ImGui::InputText("###SearchInput", &mSearchFilter, inputFlags) && !mSearchFilter.empty()) {
             mHighlighted.assign(mHighlighted.size(), false);
             mCurrentHighlightIdx = -1;
-            for(int i = 0; i < mDisplayList.size(); i++) {
-                FileSystem::Record& item = mDisplayList[i];
-                if(item.name.find(mSearchFilter) != std::string::npos) {
+            for(int i : displayList.indexes) {
+                const std::string& name = displayList.names[i];
+                if(name.find(mSearchFilter) != std::string::npos) {
                     if(mCurrentHighlightIdx < 0) mCurrentHighlightIdx = i;
                     mHighlighted[i] = true;
                 }

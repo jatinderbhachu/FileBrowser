@@ -23,30 +23,32 @@ target("glfw")
         "third_party/glfw/src/*.c"
     )
 
-
 target("main")
     set_languages("c++17")
     set_kind("binary")
     add_deps("glfw", "copy_fonts")
-
 
     add_includedirs(
         "./src",
         "src/glad/include",
         "third_party/imgui",
         "third_party/IconFontCppHeaders",
-        "third_party/glfw/include"
+        "third_party/glfw/include",
+        "third_party/tracy/public"
         )
 
     if is_mode("debug") then
       set_symbols("debug")
       add_cxflags("/EHsc", "/Zi", "/MTd", "/DEBUG:FULL")
       add_ldflags("/LTCG")
+      set_optimize("fastest")
     else
       add_cxflags("/EHsc", "/MT")
       add_ldflags("/LTCG")
       set_optimize("fastest")
     end
+
+    add_defines("TRACY_ENABLE")
 
     add_ldflags("/SUBSYSTEM:CONSOLE")
 
@@ -60,6 +62,7 @@ target("main")
         "third_party/imgui/imgui_demo.cpp",
         "third_party/imgui/imgui_widgets.cpp",
         "third_party/imgui/imgui_tables.cpp",
+        "third_party/tracy/public/TracyClient.cpp",
         "third_party/imgui/misc/cpp/imgui_stdlib.cpp",
         "third_party/imgui/backends/imgui_impl_glfw.cpp",
         "third_party/imgui/backends/imgui_impl_opengl3.cpp"
