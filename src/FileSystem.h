@@ -37,13 +37,13 @@ namespace FileSystem {
         bool isPM;
     };
 
-    struct SOARecord {
-        enum Attributes : int {
-            NONE        = 0,
-            DIRECTORY   = 1 << 0,
-            HIDDEN      = 1 << 1,
-        };
+    enum FileAttributes : int {
+        NONE        = 0,
+        DIRECTORY   = 1 << 0,
+        HIDDEN      = 1 << 1,
+    };
 
+    struct SOARecord {
         std::vector<size_t>         indexes;
         std::vector<std::string>    names;
         std::vector<int>            attributes;
@@ -63,7 +63,7 @@ namespace FileSystem {
         inline size_t size() { return indexes.size(); }
 
         inline const std::string&   getName(size_t i)               { return names[indexes[i]]; }
-        inline const bool           isFile(size_t i)                { return !(attributes[indexes[i]] & Attributes::DIRECTORY); }
+        inline const bool           isFile(size_t i)                { return !(attributes[indexes[i]] & FileAttributes::DIRECTORY); }
         inline const Timestamp&     getLastModifiedDate(size_t i)   { return lastModifiedDates[indexes[i]]; }
         inline const uint64_t&      getLastModifiedNumber(size_t i) { return lastModifiedNumbers[indexes[i]]; }
         inline const uint64_t       getSize(size_t i)               { return sizes[indexes[i]]; }

@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <numeric>
 
 struct ImDrawList;
 
@@ -31,10 +32,63 @@ class BrowserWidget
         char letter;
     };
 
+
     enum class DisplayListType {
         DEFAULT = 0, // typical folders and files 
         DRIVE,       // list of drive 
         PATH_NOT_FOUND_ERROR        // path wasn't found, display error
+    };
+
+    struct Selection {
+        std::vector<bool> selected;
+        std::vector<size_t> indexes;
+        int rangeSelectionStart = 0; // the first selected item when doing shift-click selection
+        
+        inline void clear() { 
+            selected.assign(selected.size(), false); 
+            indexes.clear();
+        }
+
+        inline void toggle(size_t i) {
+            selected[i] = !selected[i];
+            
+            rangeSelectionStart = i;
+            indexes.push_back(i);
+        }
+
+        inline void selectOne(size_t i) {
+            clear();
+
+            selected[i] = true;
+            indexes.push_back(i);
+            rangeSelectionStart = i;
+        }
+
+        inline void selectRange(size_t end) {
+            size_t start, selectionSize = 0;
+
+            clear();
+
+            if(rangeSelectionStart > end) {
+                start = end;
+                selectionSize = (rangeSelectionStart + 1) - start;
+            } else if(rangeSelectionStart < end) {
+                start = rangeSelectionStart;
+                selectionSize = (end + 1) - start;
+            } else if(rangeSelectionStart == end) {
+                rangeSelectionStart = end;
+                start = rangeSelectionStart;
+                selectionSize = 1;
+            }
+
+            indexes.resize(selectionSize);
+
+            std::fill_n(selected.begin() + start, selectionSize, true);
+            std::iota(indexes.begin(), indexes.begin() + selectionSize, start);
+        }
+
+        inline size_t   count() { return indexes.size(); }
+        inline void     resize(size_t size) { selected.resize(size); }
     };
 
 public:
@@ -74,12 +128,9 @@ private:
     bool mSearchWindowOpen = false;
     std::string mSearchFilter;
 
-    // SELECTION
-    std::vector<bool> mSelected;
-    int mNumSelected = 0;
-    int mRangeSelectionStart = 0; // the first selected item when doing shift-click selection
+    Selection mSelection;
 
-    // EDIT name
+    // EDIT file name
     std::string mEditInput;
     int mEditIdx = -1;
 

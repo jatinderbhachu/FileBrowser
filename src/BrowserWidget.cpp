@@ -65,13 +65,9 @@ Path BrowserWidget::getCurrentDirectory() const {
 }
 
 void BrowserWidget::renameSelected(const std::string& from, const std::string& to) {
-    if(mNumSelected <= 0) return;
+    if(mSelection.count() <= 0) return;
 
-    std::vector<int> itemsToRename;
-    for(int i = 0; i < mSelected.size(); i++) {
-        if(mSelected[i]) itemsToRename.push_back(i);
-    }
-
+    const std::vector<size_t>& itemsToRename = mSelection.indexes;
 
     FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
 
@@ -139,6 +135,8 @@ void BrowserWidget::acceptMovePayload(Path targetPath) {
             fileOperation.operations.push_back(op);
         }
         mFileOpsWorker->addFileOperation(fileOperation);
+
+        mSelection.clear();
     }
 }
 
@@ -243,8 +241,7 @@ void BrowserWidget::update() {
             }
         }
 
-        mSelected.assign(mSelected.size(), false);
-        mNumSelected = 0;
+        mSelection.clear();
 
         mHighlighted.assign(mHighlighted.size(), false);
         mCurrentHighlightIdx = -1;
@@ -263,10 +260,8 @@ void BrowserWidget::handleInput() {
 
     if(mIsFocused) {
         if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            mSelected.assign(mSelected.size(), false);
-            mCurrentHighlightIdx = -1;
+            mSelection.clear();
 
-            mNumSelected = 0;
             if(!mSearchWindowOpen) {
                 mHighlighted.assign(mHighlighted.size(), false);
             }
@@ -277,10 +272,9 @@ void BrowserWidget::handleInput() {
 
         // rename key
         if(ImGui::IsKeyPressed(ImGuiKey_F2)) {
-            mEditIdx = mSelected.empty() ? -1 : mRangeSelectionStart;
+            mEditIdx = mSelection.count() == 0 ? -1 : mSelection.rangeSelectionStart;
             mEditInput = displayList.getName(mEditIdx);
-            mSelected.assign(mSelected.size(), false);
-            mNumSelected = 0;
+            mSelection.clear();
         }
 
         if(ImGui::IsKeyPressed(ImGuiKey_Slash) && !mSearchWindowOpen) {
@@ -292,12 +286,10 @@ void BrowserWidget::handleInput() {
         // copy selected items to "clipboard"
         if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyPressed(ImGuiKey_C, false)) {
             mClipboard.clear();
-            for(size_t i = 0; i < mSelected.size(); i++) {
-                if(mSelected[i]) {
-                    Path itemPath = mCurrentDirectory;
-                    itemPath.appendName(displayList.getName(i));
-                    mClipboard.push_back(itemPath);
-                }
+            for(size_t i : mSelection.indexes) {
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(displayList.getName(i));
+                mClipboard.push_back(itemPath);
             }
         }
 
@@ -317,16 +309,14 @@ void BrowserWidget::handleInput() {
         // delete selected
         if(ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
             BatchFileOperation fileOperation{};
-            for(size_t i = 0; i < mSelected.size(); i++) {
-                if(mSelected[i]) {
-                    Path itemPath = mCurrentDirectory;
-                    itemPath.appendName(displayList.getName(i));
+            for(size_t i : mSelection.indexes) {
+                Path itemPath = mCurrentDirectory;
+                itemPath.appendName(displayList.getName(i));
 
-                    BatchFileOperation::Operation op;
-                    op.from = itemPath;
-                    op.opType = FileOpType::FILE_OP_DELETE;
-                    fileOperation.operations.push_back(op);
-                }
+                BatchFileOperation::Operation op;
+                op.from = itemPath;
+                op.opType = FileOpType::FILE_OP_DELETE;
+                fileOperation.operations.push_back(op);
             }
             mFileOpsWorker->addFileOperation(fileOperation);
         }
@@ -407,7 +397,7 @@ void BrowserWidget::directorySegments() {
 void BrowserWidget::directoryTable() {
     FileSystem::SOARecord& displayList = mDirectoryWatcher.mRecords;
 
-    mSelected.resize(displayList.size());
+    mSelection.resize(displayList.size());
     mHighlighted.resize(displayList.size());
 
     ImGuiIO& io = ImGui::GetIO();
@@ -468,7 +458,7 @@ void BrowserWidget::directoryTable() {
         for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
             ImGui::PushID(i);
 
-            bool isSelected = mSelected[i];
+            bool isSelected = mSelection.selected[i];
 
             const std::string& itemName = displayList.getName(i);
             const bool itemIsFile = displayList.isFile(i);
@@ -479,35 +469,12 @@ void BrowserWidget::directoryTable() {
             ImGui::TableNextColumn();
             if(ImGui::Selectable("##selectable", isSelected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns )) {
                 if(isSelectingMultiple) {
-                    mSelected[i] = !mSelected[i];
-                    mNumSelected++;
-                    mRangeSelectionStart = i;
+                    mSelection.toggle(i);
                 } else if(isSelectingRange) {
-                    int start, end = -1;
-
-                    if(mRangeSelectionStart < 0) {
-                        mRangeSelectionStart = i;
-                        start = i;
-                        end = i;
-                    } else if(mRangeSelectionStart > i) {
-                        start = i;
-                        end = mRangeSelectionStart + 1;
-                    } else if(mRangeSelectionStart < i) {
-                        start = mRangeSelectionStart;
-                        end = i + 1;
-                    }
-
-                    mSelected.assign(mSelected.size(), false);
-
-                    for(int j = start; j < end; j++) {
-                        mSelected[j] = true;
-                    }
-                    mNumSelected = end - start;
+                    mSelection.selectRange(i);
                 } else {
-                    mSelected.assign(mSelected.size(), false);
-                    mSelected[i] = true;
-                    mNumSelected = 1;
-                    mRangeSelectionStart = i;
+                    mSelection.clear();
+                    mSelection.selectOne(i);
                 }
 
                 if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
@@ -523,9 +490,9 @@ void BrowserWidget::directoryTable() {
                 }
             }
 
-            isSelected = mSelected[i];
+            isSelected = mSelection.selected[i];
 
-            if(mNumSelected > 0) {
+            if(mSelection.count() > 0) {
                 if(ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
                     // can only DragDrop a selected item
                     if(isSelected) {
@@ -533,16 +500,15 @@ void BrowserWidget::directoryTable() {
                         mMovePayload.sourcePath = mCurrentDirectory;
                         mMovePayload.sourceDisplayList = &displayList;
 
-                        for(int j = 0; j < mSelected.size(); j++) {
-                            if(mSelected[j]) mMovePayload.itemsToMove.push_back(j); 
+                        for(size_t j : mSelection.indexes) {
+                            mMovePayload.itemsToMove.push_back(j); 
                         }
                         
                         size_t payloadSize = sizeof(void*);
                         void* payloadPtr = static_cast<void*>(&mMovePayload);
                         bool accepted = ImGui::SetDragDropPayload(MOVE_PAYLOAD, &payloadPtr, payloadSize, ImGuiCond_Once);
                     } else {
-                        mSelected.assign(mSelected.size(), false);
-                        mNumSelected = 0;
+                        mSelection.clear();
                     }
                     ImGui::EndDragDropSource();
                 }
@@ -680,7 +646,7 @@ void BrowserWidget::driveList() {
     ImGuiListClipper clipper;
     clipper.Begin(mDriveList.size());
 
-    mSelected.resize(mDriveList.size());
+    mSelection.resize(mDriveList.size());
 
     mTableSortSpecs = ImGui::TableGetSortSpecs();
 
@@ -692,7 +658,7 @@ void BrowserWidget::driveList() {
             ImGui::PushID(uniqueID.c_str());
 
             const DriveRecord& item = mDriveList[i];
-            bool isSelected = mSelected[i];
+            bool isSelected = mSelection.selected[i];
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();

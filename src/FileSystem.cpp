@@ -38,11 +38,11 @@ void SOARecord::sortByName(SortDirection direction) {
 void SOARecord::sortByType(SortDirection direction) {
     if(direction == SortDirection::Ascending) {
         std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
-                return !(attributes[lhs] & Attributes::DIRECTORY) < !(attributes[rhs] & Attributes::DIRECTORY);
+                return !(attributes[lhs] & FileAttributes::DIRECTORY) < !(attributes[rhs] & FileAttributes::DIRECTORY);
         });
     } else {
         std::stable_sort(indexes.begin(), indexes.end(), [&](const size_t& lhs, const size_t& rhs) { 
-                return !(attributes[lhs] & Attributes::DIRECTORY) > !(attributes[rhs] & Attributes::DIRECTORY);
+                return !(attributes[lhs] & FileAttributes::DIRECTORY) > !(attributes[rhs] & FileAttributes::DIRECTORY);
         });
     }
 }
@@ -149,11 +149,11 @@ bool enumerateDirectory(const Path& path, SOARecord& out_DirectoryItems) {
 
         int attribute = 0;
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            attribute |= SOARecord::Attributes::DIRECTORY;
+            attribute |= FileAttributes::DIRECTORY;
         }
 
         if(findFileData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) {
-            attribute |= SOARecord::Attributes::HIDDEN;
+            attribute |= FileAttributes::HIDDEN;
         }
 
         uint64_t size = (static_cast<uint64_t>(findFileData.nFileSizeHigh) << 32) | static_cast<uint64_t>(findFileData.nFileSizeLow);
