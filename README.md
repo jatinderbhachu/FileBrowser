@@ -9,13 +9,15 @@ An experimental file browser with a focus on productivity and speed. Written in 
 
 
 ### Tabs and splits
-https://user-images.githubusercontent.com/10367799/193976266-77211bfe-a5d6-45c3-86d9-3960ff32b0a2.mp4
+https://user-images.githubusercontent.com/10367799/198183850-6719e0a9-74fc-4793-be15-c729367a7f47.mp4
 
 ### Replace text in selection using the Command Palette
-https://user-images.githubusercontent.com/10367799/193976268-2c06ae92-e412-4f21-8a00-de631497d1ac.mp4
+https://user-images.githubusercontent.com/10367799/198183871-e2af2cda-f59a-4836-b46a-cf9ec730c9db.mp4
 
 ### Search for items in directory with `/` command
-https://user-images.githubusercontent.com/10367799/193976269-d8811a57-e39a-4846-a010-b702746ed266.mp4
+https://user-images.githubusercontent.com/10367799/198183917-5c98876e-eaf5-4879-b7b7-94d6189782f4.mp4
+
+
 
 ## Libraries Used
 - [ImGui](https://github.com/ocornut/imgui) - GUI library
