@@ -71,6 +71,9 @@ target("main")
 
 target("copy_fonts")
     on_build(function(target)
+        os.trycp("$(projectdir)/Roboto-Medium.ttf", "$(buildir)/windows/x64/debug/Roboto-Medium.ttf")
+        os.trycp("$(projectdir)/Roboto-Medium.ttf", "$(buildir)/windows/x64/release/Roboto-Medium.ttf")
+
         os.trycp("$(projectdir)/third_party/Fork-Awesome/fonts/forkawesome-webfont.ttf", "$(buildir)/windows/x64/debug/forkawesome-webfont.ttf")
         os.trycp("$(projectdir)/third_party/Fork-Awesome/fonts/forkawesome-webfont.ttf", "$(buildir)/windows/x64/release/forkawesome-webfont.ttf")
     end)

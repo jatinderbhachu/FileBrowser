@@ -24,6 +24,7 @@
 #include "DefaultLayout.h"
 
 static const char* DebugTestPath = "./browser_test/runtime_test";
+static const char* DefaultFontFile = "Roboto-Medium.ttf";
 
 Application::Application() {
     glfwInit();
@@ -48,11 +49,14 @@ Application::Application() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 
-    io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontDefault();
+
+    ImFontConfig defaultFontConf; defaultFontConf.PixelSnapH = true;
+    ImFont* defaultFont = io.Fonts->AddFontFromFileTTF(DefaultFontFile, 16.0f, &defaultFontConf, NULL);
 
     static const ImWchar iconsRanges[] = { ICON_MIN_FK, ICON_MAX_16_FK, 0 };
     ImFontConfig iconsConfig; iconsConfig.MergeMode = true; iconsConfig.PixelSnapH = true;
-    ImFont* iconFont = io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FK, 13.0f, &iconsConfig, iconsRanges);
+    ImFont* iconFont = io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FK, 16.0f, &iconsConfig, iconsRanges);
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -164,7 +168,7 @@ void Application::run() {
                 ImGui::Begin("###CommandPalette", nullptr, commandWindowFlags);
 
                 int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue
-                    | ImGuiInputTextFlags_AutoSelectAll
+                    //| ImGuiInputTextFlags_AutoSelectAll
                     | ImGuiInputTextFlags_CallbackEdit
                     | ImGuiInputTextFlags_CallbackCompletion
                     | ImGuiInputTextFlags_CallbackHistory
@@ -262,6 +266,8 @@ void Application::run() {
             ImGui::End();
         }
 
+        fileOperationHistory();
+
         ImGui::End(); // end container
 
         ImGui::Render();
@@ -278,6 +284,51 @@ void Application::run() {
 
         FrameMark;
     }
+}
+
+void Application::fileOperationHistory() {
+    if(glfwGetKey(mWindow, GLFW_KEY_H) == GLFW_PRESS 
+            && (glfwGetKey(mWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(mWindow, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)) {
+        mHistoryWindowOpen = true;
+    }
+
+    if(!mHistoryWindowOpen) return;
+
+    if(!ImGui::Begin("File operation history", &mHistoryWindowOpen)) {
+        ImGui::End();
+        return;
+    }
+
+    for(const BatchFileOperation& batchOp : mFileOpsWorker.mHistory) {
+    
+        for(const BatchFileOperation::Operation& op : batchOp.operations) {
+            std::string fromLastSegment = op.from.getLastSegment();
+            std::string toLastSegment = op.to.getLastSegment();
+            switch(op.opType) {
+                case FileOpType::FILE_OP_COPY:
+                    {
+                        ImGui::Text("Copy %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
+                    } break;
+                case FileOpType::FILE_OP_MOVE:
+                    {
+                        ImGui::Text("Move %s to %s", fromLastSegment.c_str(), toLastSegment.c_str());
+                    } break;
+                case FileOpType::FILE_OP_DELETE:
+                    {
+                        ImGui::Text("Delete %s", fromLastSegment.c_str());
+                    } break;
+                case FileOpType::FILE_OP_RENAME:
+                    {
+                        ImGui::Text("Rename %s to %s", fromLastSegment.c_str(), op.to.str().c_str());
+                    } break;
+            }
+        }
+
+        ImGui::Separator();
+    }
+
+    ImGui::End();
+
 }
 
 int Application::CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data) {

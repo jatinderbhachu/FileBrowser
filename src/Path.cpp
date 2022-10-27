@@ -180,7 +180,7 @@ std::string Path::getFileExtension() {
     return "";
 }
 
-std::string Path::getLastSegment() {
+std::string Path::getLastSegment() const {
     if(!mSegments.empty()) {
         return std::string(mSegments.back());
     }

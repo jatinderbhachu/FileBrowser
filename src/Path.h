@@ -30,7 +30,7 @@ public:
     bool hasFileExtension();
     std::string getFileExtension();
 
-    std::string getLastSegment();
+    std::string getLastSegment() const;
 
     bool isDriveRoot() const;
 

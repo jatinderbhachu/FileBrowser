@@ -24,3 +24,8 @@ https://user-images.githubusercontent.com/10367799/193976269-d8811a57-e39a-4846-
 - [Fork-Awesome](https://github.com/ForkAwesome/Fork-Awesome) - Icons font
 - [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) - Headers for icon fonts
 - [Catch2](https://github.com/catchorg/Catch2) - Testing framework
+
+## Font License
+Roboto-Medium.ttf, by Christian Robertson
+Apache License 2.0
+https://fonts.google.com/specimen/Roboto

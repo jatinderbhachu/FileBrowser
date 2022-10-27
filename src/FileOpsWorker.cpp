@@ -140,6 +140,15 @@ void FileOpsWorker::syncProgress() {
 
                     // just invalidate the file operation at that index
                     op.idx = -1;
+                    
+                    // TODO: replace with another struct specifically for history?
+                    BatchFileOperation historyOp{};
+                    historyOp.idx = -1;
+                    historyOp.operations = op.operations;
+
+                    printf("Finish operation\n");
+
+                    mHistory.push_back(historyOp);
                 } break;
             default:
                 break;

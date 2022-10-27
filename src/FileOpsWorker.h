@@ -11,6 +11,12 @@ enum class FileOpType {
     FILE_OP_DELETE
 };
 
+enum FileOpProgressType {
+    FILE_OP_PROGRESS_UPDATE = 0,
+    FILE_OP_PROGRESS_FINISH_SUCCESS,
+    FILE_OP_PROGRESS_FINISH_ERROR,
+};
+
 class BatchFileOperation {
 public:
     struct Operation {
@@ -21,13 +27,8 @@ public:
     std::vector<Operation> operations;
     int currentProgress = 0;
     int totalProgress = INT32_MAX;
+    FileOpProgressType status = FILE_OP_PROGRESS_UPDATE;
     int idx = -1;
-};
-
-enum FileOpProgressType {
-    FILE_OP_PROGRESS_UPDATE = 0,
-    FILE_OP_PROGRESS_FINISH_SUCCESS,
-    FILE_OP_PROGRESS_FINISH_ERROR,
 };
 
 struct FileOpProgress {
@@ -51,10 +52,10 @@ public:
     std::vector<BatchFileOperation> mFileOperations;
 
     ThreadedQueue<FileOpProgress> ResultQueue;
+    std::vector<BatchFileOperation> mHistory;
 private:
     void Run();
 
-    std::vector<BatchFileOperation> mHistory;
 
     int mOperationsInProgress = 0;
 

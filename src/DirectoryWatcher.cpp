@@ -55,6 +55,10 @@ bool DirectoryWatcher::update() {
             mRecords.sortByLastModified(mSortDirection);
         } 
 
+        if(mSortFlags & DIRECTORY_SORT_FILE_SIZE) {
+            mRecords.sortBySize(mSortDirection);
+        } 
+
         mRecords.sortByType(mSortDirection);
     }
 

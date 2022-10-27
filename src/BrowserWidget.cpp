@@ -79,6 +79,8 @@ void BrowserWidget::renameSelected(const std::string& from, const std::string& t
         sourcePath.appendName(name);
 
         std::string newName = std::regex_replace( name, std::regex(from), to );
+        if(newName == name) continue;
+
         Path targetPath(newName);
 
         BatchFileOperation::Operation op;
@@ -208,6 +210,10 @@ void BrowserWidget::update() {
                     case 2:  // date
                         {
                             mDirectoryWatcher.setSort(DirectorySortFlags::DIRECTORY_SORT_DATE, dir);
+                        } break;
+                    case 3:  // file size
+                        {
+                            mDirectoryWatcher.setSort(DirectorySortFlags::DIRECTORY_SORT_FILE_SIZE, dir);
                         } break;
                 }
             }
@@ -413,9 +419,9 @@ void BrowserWidget::directoryTable() {
 
     static ImGuiTableFlags tableFlags = 
         ImGuiTableFlags_SizingStretchSame 
+        | ImGuiTableFlags_NoBordersInBodyUntilResize
         | ImGuiTableFlags_Resizable 
         | ImGuiTableFlags_Hideable
-        | ImGuiTableFlags_NoPadInnerX
         | ImGuiTableFlags_ContextMenuInBody 
         | ImGuiTableFlags_Reorderable
         | ImGuiTableFlags_Sortable;
@@ -435,7 +441,7 @@ void BrowserWidget::directoryTable() {
         | ImGuiTableColumnFlags_IndentDisable
         | ImGuiTableColumnFlags_NoSort;
 
-    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
+    ImVec2 iconColumnSize = ImGui::CalcTextSize(ICON_FK_FOLDER);
     ImGui::TableSetupColumn(DISPLAY_COLUMN_ICON, iconColumnFlags, iconColumnSize.x);
 
     int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending | ImGuiTableColumnFlags_NoHide;
@@ -577,7 +583,7 @@ void BrowserWidget::directoryTable() {
             }
 
             ImGui::TableNextColumn();
-            ImGui::Text("%u-%02u-%02u %02u:%02u %s",
+            ImGui::Text("%u-%02u-%02u  %02u:%02u %s",
                     itemLastModified.year,
                     itemLastModified.month,
                     itemLastModified.day,
@@ -716,8 +722,8 @@ void BrowserWidget::updateSearch() {
         if(ImGui::InputText("###SearchInput", &mSearchFilter, inputFlags) && !mSearchFilter.empty()) {
             mHighlighted.assign(mHighlighted.size(), false);
             mCurrentHighlightIdx = -1;
-            for(int i : displayList.indexes) {
-                const std::string& name = displayList.names[i];
+            for(int i = 0; i < displayList.size(); i++) {
+                const std::string& name = displayList.getName(i);
                 if(name.find(mSearchFilter) != std::string::npos) {
                     if(mCurrentHighlightIdx < 0) mCurrentHighlightIdx = i;
                     mHighlighted[i] = true;

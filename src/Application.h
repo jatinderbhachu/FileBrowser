@@ -23,6 +23,10 @@ private:
 
     static int CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data);
 
+    void fileOperationHistory();
+
+    bool mHistoryWindowOpen = false;
+
     int mWindowWidth = 1280;
     int mWindowHeight = 720;
 
