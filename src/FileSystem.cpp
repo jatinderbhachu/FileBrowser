@@ -89,6 +89,36 @@ void getDriveLetters(std::vector<char> &out_driveLetters) {
     }
 }
 
+void getDriveNames(std::vector<std::string> &out_driveNames) {
+    std::vector<char> driveLetters;
+    getDriveLetters(driveLetters);
+
+    WCHAR driveName[MAX_PATH];
+    for(char driveLetter : driveLetters) {
+        
+        std::wstring drivePath = Util::Utf8ToWstring(std::string(1, driveLetter) + ":\\");
+
+        GetVolumeInformationW(drivePath.data(),
+                                                driveName,
+                                                MAX_PATH,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                0);
+        std::string name = Util::WstringToUtf8(driveName);
+
+        // TODO: verify this...
+        // name appears to be empty when the volume is the windows boot drive (C drive), so just set it to "This PC"
+        if(name.empty()) {
+            name = "This PC";
+        }
+
+        out_driveNames.push_back(name);
+    }
+}
+
+
 void openFile(const Path& path) {
     ShellExecuteW(0, 0, path.wstr().c_str(), 0, 0, SW_SHOW);
 }
@@ -172,10 +202,10 @@ bool enumerateDirectory(const Path& path, SOARecord& out_DirectoryItems) {
 }
 
 Path getCurrentProcessPath() {
-    WCHAR fullPath[1024];
+    WCHAR fullPath[MAX_PATH];
 
-    DWORD numChars = GetCurrentDirectoryW(1024, &fullPath[0]);
-    assert(numChars < 1024 && "Not enough space in buffer to retrieve full path");
+    DWORD numChars = GetCurrentDirectoryW(MAX_PATH, &fullPath[0]);
+    assert(numChars < MAX_PATH && "Not enough space in buffer to retrieve full path");
 
     std::string converted = Util::WstringToUtf8(&fullPath[0]);
 

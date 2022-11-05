@@ -78,6 +78,7 @@ namespace FileSystem {
     bool createDirectory(const Path& path);
 
     void getDriveLetters(std::vector<char>& out_driveLetters);
+    void getDriveNames(std::vector<std::string>& out_driveNames);
 
     void openFile(const Path& filePath);
     Path getCurrentProcessPath();

@@ -226,14 +226,15 @@ void BrowserWidget::update() {
         mDirectoryChanged = false;
         if(mCurrentDirectory.isEmpty()) {
             std::vector<char> driveLetters;
+            std::vector<std::string> driveNames;
             FileSystem::getDriveLetters(driveLetters);
-            mDriveList.clear();
-            for(char driveLetter : driveLetters) {
-                DriveRecord driveRecord{};
-                driveRecord.letter = driveLetter;
+            FileSystem::getDriveNames(driveNames);
 
-                // TODO: get the actual drive name
-                driveRecord.name = std::string(1, driveLetter);
+            mDriveList.clear();
+            for(int i = 0; i < driveNames.size(); i++) {
+                DriveRecord driveRecord{};
+                driveRecord.letter = driveLetters[i];
+                driveRecord.name = std::string(1, driveLetters[i]) + ": " + driveNames[i];
                 
                 mDriveList.push_back(driveRecord);
             }
@@ -644,11 +645,11 @@ void BrowserWidget::driveList() {
         | ImGuiTableColumnFlags_NoResize 
         | ImGuiTableColumnFlags_IndentDisable
         | ImGuiTableColumnFlags_NoSort;
-    ImVec2 iconColumnSize = ImGui::CalcTextSize("[]");
-    ImGui::TableSetupColumn("icon", iconColumnFlags, iconColumnSize.x);
+    ImVec2 iconColumnSize = ImGui::CalcTextSize(ICON_FK_CIRCLE_O_NOTCH);
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_ICON, iconColumnFlags, iconColumnSize.x);
 
     int nameColumnFlags = ImGuiTableColumnFlags_IndentDisable | ImGuiTableColumnFlags_PreferSortAscending;
-    ImGui::TableSetupColumn("Name", nameColumnFlags);
+    ImGui::TableSetupColumn(DISPLAY_COLUMN_NAME, nameColumnFlags);
 
     ImGuiListClipper clipper;
     clipper.Begin(mDriveList.size());
