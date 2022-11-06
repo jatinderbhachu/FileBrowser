@@ -118,6 +118,37 @@ void getDriveNames(std::vector<std::string> &out_driveNames) {
     }
 }
 
+GUID KnownFolderToGUID(KnownFolder type) {
+    switch(type) {
+        case KnownFolder::Desktop: return FOLDERID_Desktop;
+        case KnownFolder::Documents: return FOLDERID_Documents;
+        case KnownFolder::Downloads: return FOLDERID_Downloads;
+        case KnownFolder::Music: return FOLDERID_Music;
+        case KnownFolder::Videos: return FOLDERID_Videos;
+        case KnownFolder::Pictures: return FOLDERID_Pictures;
+        case KnownFolder::ProgramData: return FOLDERID_ProgramData;
+        case KnownFolder::ProgramFilesX64: return FOLDERID_ProgramFilesX64;
+        case KnownFolder::ProgramFilesX86: return FOLDERID_ProgramFilesX86;
+        case KnownFolder::RoamingAppData: return FOLDERID_RoamingAppData;
+        case KnownFolder::LocalAppData: return FOLDERID_LocalAppData;
+    }
+}
+
+Path getKnownFolderPath(KnownFolder folderType) {
+    Path result("");
+
+    PWSTR str;
+
+    HRESULT res = SHGetKnownFolderPath(KnownFolderToGUID(folderType), 0, NULL, &str);
+
+    if(res == S_OK) {
+        result = Path( Util::WstringToUtf8(str) );
+
+        delete str;
+    }
+
+    return result;
+}
 
 void openFile(const Path& path) {
     ShellExecuteW(0, 0, path.wstr().c_str(), 0, 0, SW_SHOW);

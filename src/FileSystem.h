@@ -3,6 +3,8 @@
 #include <vector>
 #include "SortDirection.h"
 
+#include <guiddef.h>
+
 class Path;
 class FileOpProgressSink;
 
@@ -43,6 +45,23 @@ namespace FileSystem {
         HIDDEN      = 1 << 1,
     };
 
+    // https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid
+    enum class KnownFolder {
+        Documents,
+        Desktop,
+        Downloads,
+        Music,
+        Videos,
+        Pictures,
+        ProgramData,
+        ProgramFilesX64,
+        ProgramFilesX86,
+        RoamingAppData,
+        LocalAppData
+    };
+
+    GUID KnownFolderToGUID(KnownFolder);
+    
     struct SOARecord {
         std::vector<size_t>         indexes;
         std::vector<std::string>    names;
@@ -79,6 +98,8 @@ namespace FileSystem {
 
     void getDriveLetters(std::vector<char>& out_driveLetters);
     void getDriveNames(std::vector<std::string>& out_driveNames);
+
+    Path getKnownFolderPath(KnownFolder);
 
     void openFile(const Path& filePath);
     Path getCurrentProcessPath();

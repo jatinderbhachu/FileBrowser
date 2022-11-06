@@ -69,6 +69,18 @@ Application::Application() {
     // vsync
     glfwSwapInterval(1);
 
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Documents), "Documents" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Desktop), "Desktop" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Downloads), "Downloads" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Music), "Music" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Videos), "Videos" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::Pictures), "Pictures" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::ProgramData), "ProgramData" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::ProgramFilesX64), "ProgramFilesX64" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::ProgramFilesX86), "ProgramFilesX86" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::RoamingAppData), "RoamingAppData" });
+    mQuickAccessLinks.push_back({ FileSystem::getKnownFolderPath(FileSystem::KnownFolder::LocalAppData), "LocalAppData" });
+    
     Path baseDir(DebugTestPath);
     baseDir.toAbsolute();
 
@@ -122,8 +134,7 @@ void Application::run() {
             mBrowserWidgets.push_back(BrowserWidget(Path(""), &mFileOpsWorker));
         }
 
-        static std::vector<int> widgetsToClose;
-        widgetsToClose.clear();
+        std::vector<int> widgetsToClose;
 
         // update browser widgets
         for(int i = 0; i < mBrowserWidgets.size(); i++) {
@@ -150,7 +161,7 @@ void Application::run() {
         }
 
 
-        // command palette
+        // Command Palette
         {
             if(glfwGetKey(mWindow, GLFW_KEY_P) == GLFW_PRESS 
                     && (glfwGetKey(mWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(mWindow, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)) {
@@ -166,6 +177,7 @@ void Application::run() {
                 ImGui::SetNextWindowPos({(mWindowWidth / 2.0f) - (mWindowWidth / 6.0f), mWindowHeight / 5.0f});
 
                 ImGui::Begin("###CommandPalette", nullptr, commandWindowFlags);
+                ImGui::Text("Command Palette");
 
                 int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue
                     //| ImGuiInputTextFlags_AutoSelectAll
@@ -183,6 +195,7 @@ void Application::run() {
                     mCmdParser.execute(mCmdPaletteInput, &mBrowserWidgets[mCurrentFocusedWidget]);
 
                     mCommandPaletteOpen = false;
+                    mCmdPaletteInput.clear();
                 }
 
                 std::vector<std::string_view> cmdNames = mCmdParser.GetCommandNames();
@@ -224,12 +237,73 @@ void Application::run() {
             }
         }
 
-        //ImGui::Begin("debug window");
-        //ImGui::ShowMetricsWindow();
-        //ImGui::ShowFontSelector("Font selector");
-        //ImGui::ShowStyleEditor();
-        //ImGui::End();
+        // Quick Access 
+        {
+            // TODO: check if command palette is open
 
+            if(glfwGetKey(mWindow, GLFW_KEY_O) == GLFW_PRESS 
+                    && (glfwGetKey(mWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(mWindow, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)) {
+                mQuickAccessWindowOpen = true;
+            }
+
+            int quickWindowFlags = ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoDocking
+                ;
+
+            if(mQuickAccessWindowOpen) {
+                ImGui::SetNextWindowSize({mWindowWidth / 3.0f, 0.0f});
+                ImGui::SetNextWindowPos({(mWindowWidth / 2.0f) - (mWindowWidth / 6.0f), mWindowHeight / 5.0f});
+
+                ImGui::Begin("###QuickAccess", nullptr, quickWindowFlags);
+                ImGui::Text("Quick Access");
+
+                int inputFlags = ImGuiInputTextFlags_EnterReturnsTrue
+                    //| ImGuiInputTextFlags_AutoSelectAll
+                    | ImGuiInputTextFlags_CallbackEdit
+                    | ImGuiInputTextFlags_CallbackCompletion
+                    | ImGuiInputTextFlags_CallbackHistory
+                    ;
+
+                ImGui::SetNextItemWidth(-1.0f);
+                ImGui::SetKeyboardFocusHere(0);
+                if(ImGui::InputText("###QuickAccessInput", &mQuickAccessInput, inputFlags, Application::QuickAccessInputTextCallback, this) && mCurrentFocusedWidget != -1) {
+
+                    if(mQuickAccessSelection != -1) {
+                        QuickAccessLink& link = mQuickAccessLinks[mQuickAccessCompletionList[mQuickAccessSelection]];
+                        BrowserWidget& widget = mBrowserWidgets[mCurrentFocusedWidget];
+
+                        widget.setCurrentDirectory(link.path);
+                    }
+
+                    mQuickAccessInput.clear();
+                    mQuickAccessWindowOpen = false;
+                }
+
+                if(mQuickAccessInput.empty()) {
+                    mQuickAccessCompletionList.clear();
+                    for(int i = 0; i < mQuickAccessLinks.size(); i++) {
+                        mQuickAccessCompletionList.push_back(i);
+                    }
+                }
+
+                // get list of matches
+                for(int i = 0; i < mQuickAccessCompletionList.size(); i++) {
+                    int linkIdx = mQuickAccessCompletionList[i];
+
+                    ImGui::Text("%s", mQuickAccessLinks[linkIdx].displayName.data());
+                    if(i == mQuickAccessSelection) {
+                        ImVec2 cursor = ImGui::GetCursorScreenPos();
+                        ImVec2 max{cursor.x + ImGui::CalcItemWidth(), cursor.y - ImGui::GetTextLineHeightWithSpacing()};
+                        ImGui::GetWindowDrawList()->AddRect(cursor, max, IM_COL32(255, 0, 0, 255));
+                    }
+                }
+
+                if(ImGui::IsKeyPressed(ImGuiKey_Escape)) mQuickAccessWindowOpen = false;
+                ImGui::End();
+            }
+        }
+
+        // Status Bar
         {
             int statusBarFlags = ImGuiWindowFlags_NoDecoration
                 | ImGuiWindowFlags_NoDocking;
@@ -267,6 +341,15 @@ void Application::run() {
         }
 
         fileOperationHistory();
+
+        // Debug stuff
+        {
+            //ImGui::Begin("debug window");
+            //ImGui::ShowMetricsWindow();
+            //ImGui::ShowFontSelector("Font selector");
+            //ImGui::ShowStyleEditor();
+            //ImGui::End();
+        }
 
         ImGui::End(); // end container
 
@@ -382,3 +465,50 @@ int Application::CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
+int Application::QuickAccessInputTextCallback(ImGuiInputTextCallbackData* data) {
+    Application* app = static_cast<Application*>(data->UserData);
+    if(app == nullptr) return 0;
+
+    std::string_view buffer(data->Buf, data->BufTextLen);
+
+    app->mQuickAccessCompletionList.clear();
+
+    // get all commands
+    auto xMatches = [&data, &buffer](const std::string_view itemName) {
+        if(data->BufTextLen > 0) {
+            return itemName.find(buffer) != std::string::npos;
+        } else {
+            return true;
+        }
+    };
+
+    for(int i = 0; i < app->mQuickAccessLinks.size(); i++) {
+        if(xMatches(app->mQuickAccessLinks[i].displayName)) {
+            app->mQuickAccessCompletionList.push_back(i);
+        }
+    }
+
+    if(data->EventKey == ImGuiKey_UpArrow) {
+        app->mQuickAccessSelection--;
+    } else if(data->EventKey == ImGuiKey_DownArrow) {
+        app->mQuickAccessSelection++;
+    }
+
+    if(app->mQuickAccessCompletionList.empty()) {
+        app->mQuickAccessSelection = -1;
+    } else {
+        if(app->mQuickAccessSelection >= static_cast<int>(app->mQuickAccessCompletionList.size())) {
+            app->mQuickAccessSelection = 0;
+        } else if(app->mQuickAccessSelection < 0) {
+            app->mQuickAccessSelection = app->mQuickAccessCompletionList.size() - 1;
+        }
+    }
+
+    if(data->EventKey == ImGuiKey_Tab) {
+        data->DeleteChars(0, data->BufTextLen);
+        data->InsertChars(0, app->mQuickAccessLinks[app->mQuickAccessCompletionList[app->mQuickAccessSelection]].displayName.data());
+        data->BufDirty = true;
+    } 
+
+    return 0;
+}
