@@ -144,7 +144,7 @@ Path getKnownFolderPath(KnownFolder folderType) {
     if(res == S_OK) {
         result = Path( Util::WstringToUtf8(str) );
 
-        delete str;
+        CoTaskMemFree((LPVOID)str);
     }
 
     return result;

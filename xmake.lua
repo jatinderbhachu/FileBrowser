@@ -27,6 +27,7 @@ target("main")
     set_languages("c++17")
     set_kind("binary")
     add_deps("glfw", "copy_fonts")
+    set_basename("FileBrowser")
 
     add_includedirs(
         "./src",
@@ -41,16 +42,16 @@ target("main")
       set_symbols("debug")
       add_cxflags("/EHsc", "/Zi", "/MTd", "/DEBUG:FULL")
       add_ldflags("/LTCG")
-      set_optimize("fastest")
     else
       add_cxflags("/EHsc", "/MT")
       add_ldflags("/LTCG")
       set_optimize("fastest")
     end
 
-    add_defines("TRACY_ENABLE")
+    --add_defines("TRACY_ENABLE")
 
-    add_ldflags("/SUBSYSTEM:CONSOLE")
+    add_ldflags("/SUBSYSTEM:WINDOWS")
+    
 
     add_links("glfw", "user32", "gdi32", "shlwapi", "shell32", "Ole32")
 
