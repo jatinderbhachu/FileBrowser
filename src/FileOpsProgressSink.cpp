@@ -1,4 +1,7 @@
 #include "FileOpsProgressSink.h"
+#include "StringUtils.h"
+#include "FileOpsWorker.h"
+
 #include <combaseapi.h>
 #include <assert.h>
 #include <dmerror.h>
@@ -6,7 +9,6 @@
 #include <sherrors.h>
 #include <shlwapi.h>
 #include <winerror.h>
-#include "FileOpsWorker.h"
 
 
 inline static void PrintError(HRESULT hr) {
@@ -21,7 +23,7 @@ inline static void PrintError(HRESULT hr) {
 }
 
 
-FileOpProgressSink::FileOpProgressSink() : _cRef(1)
+FileOpProgressSink::FileOpProgressSink(FileOpsWorker* fileOpsWorker) : _cRef(1), mFileOpsWorker(fileOpsWorker)
 {
 }
 
@@ -57,12 +59,7 @@ IFACEMETHODIMP FileOpProgressSink::StartOperations() {
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::FinishOperations(HRESULT hrResult) {
-    assert(currentOperationIdx != -1);
-
-    FileOpProgress progress{};
-    progress.type = FILE_OP_PROGRESS_FINISH_SUCCESS;
-    progress.fileOpIdx = currentOperationIdx;
-    fileOpsWorker->ResultQueue.push(progress);
+    mFileOpsWorker->finishCurrentOperation();
 
     return S_OK;
 }
@@ -79,12 +76,20 @@ IFACEMETHODIMP FileOpProgressSink::PostRenameItem(DWORD /*dwFlags*/, IShellItem 
 
     return S_OK;
 }
-IFACEMETHODIMP FileOpProgressSink::PreMoveItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/)
+IFACEMETHODIMP FileOpProgressSink::PreMoveItem(DWORD dwFlags, IShellItem *psiItem, IShellItem *psiDestinationFolder, PCWSTR pszNewName)
 {
+
+    LPWSTR itemName;
+    psiItem->GetDisplayName(SIGDN_NORMALDISPLAY, &itemName);
+    std::string newName(Util::WstringToUtf8(itemName));
+    CoTaskMemFree(itemName);
+
+    mFileOpsWorker->updateCurrentOpDescription(FileOpType::FILE_OP_RENAME, newName);
+
     return S_OK;
 }
-IFACEMETHODIMP FileOpProgressSink::PostMoveItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/,
-        IShellItem * /*psiDestinationFolder*/, PCWSTR /*pszNewName*/, HRESULT hr, IShellItem * /*psiNewlyCreated*/)
+IFACEMETHODIMP FileOpProgressSink::PostMoveItem(DWORD dwFlags, IShellItem * psiItem,
+        IShellItem * psiDestinationFolder, PCWSTR pszNewName, HRESULT hr, IShellItem * psiNewlyCreated)
 {
     if(!SUCCEEDED(hr)) {
         PrintError(hr);
@@ -94,6 +99,13 @@ IFACEMETHODIMP FileOpProgressSink::PostMoveItem(DWORD /*dwFlags*/, IShellItem * 
 }
 IFACEMETHODIMP FileOpProgressSink::PreCopyItem(DWORD dwFlags, IShellItem *psiItem,
         IShellItem *psiDestinationFolder, PCWSTR pszNewName) {
+
+    LPWSTR itemName;
+    psiItem->GetDisplayName(SIGDN_NORMALDISPLAY, &itemName);
+    std::string newName(Util::WstringToUtf8(itemName));
+    CoTaskMemFree(itemName);
+
+    mFileOpsWorker->updateCurrentOpDescription(FileOpType::FILE_OP_COPY, newName);
 
     return S_OK;
 }
@@ -107,8 +119,16 @@ IFACEMETHODIMP FileOpProgressSink::PostCopyItem(DWORD dwFlags, IShellItem *psiIt
 
     return S_OK;
 }
-IFACEMETHODIMP FileOpProgressSink::PreDeleteItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/)
+IFACEMETHODIMP FileOpProgressSink::PreDeleteItem(DWORD dwFlags, IShellItem * psiItem)
 {
+
+    LPWSTR itemName;
+    psiItem->GetDisplayName(SIGDN_NORMALDISPLAY, &itemName);
+    std::string newName(Util::WstringToUtf8(itemName));
+    CoTaskMemFree(itemName);
+    
+    mFileOpsWorker->updateCurrentOpDescription(FileOpType::FILE_OP_DELETE, newName);
+
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::PostDeleteItem(DWORD /*dwFlags*/, IShellItem * /*psiItem*/, HRESULT hr, IShellItem * /*psiNewlyCreated*/)
@@ -130,14 +150,11 @@ IFACEMETHODIMP FileOpProgressSink::PostNewItem(DWORD /*dwFlags*/, IShellItem * /
 }
 
 IFACEMETHODIMP FileOpProgressSink::UpdateProgress(UINT iWorkTotal, UINT iWorkSoFar) {
-    assert(currentOperationIdx != -1);
+    if(mFileOpsWorker->isPaused()) {
+        mFileOpsWorker->pauseOperation();
+    }
 
-    FileOpProgress progress{};
-    progress.type = FILE_OP_PROGRESS_UPDATE;
-    progress.fileOpIdx = currentOperationIdx;
-    progress.totalProgress = iWorkTotal;
-    progress.currentProgress = iWorkSoFar;
-    fileOpsWorker->ResultQueue.push(progress);
+    mFileOpsWorker->updateCurrentOpProgress(iWorkSoFar, iWorkTotal);
 
     return S_OK;
 }
@@ -151,11 +168,6 @@ IFACEMETHODIMP FileOpProgressSink::PauseTimer()
     return S_OK;
 }
 IFACEMETHODIMP FileOpProgressSink::ResumeTimer()
-{
-    return S_OK;
-}
-
-HRESULT FileOpProgressSink::DoModal()
 {
     return S_OK;
 }

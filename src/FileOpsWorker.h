@@ -11,12 +11,6 @@ enum class FileOpType {
     FILE_OP_DELETE
 };
 
-enum FileOpProgressType {
-    FILE_OP_PROGRESS_UPDATE = 0,
-    FILE_OP_PROGRESS_FINISH_SUCCESS,
-    FILE_OP_PROGRESS_FINISH_ERROR,
-};
-
 class BatchFileOperation {
 public:
     struct Operation {
@@ -27,15 +21,10 @@ public:
     std::vector<Operation> operations;
     int currentProgress = 0;
     int totalProgress = INT32_MAX;
-    FileOpProgressType status = FILE_OP_PROGRESS_UPDATE;
     int idx = -1;
-};
 
-struct FileOpProgress {
-    FileOpProgressType type;
-    int fileOpIdx;
-    int currentProgress;
-    int totalProgress;
+    FileOpType currentOpType;
+    std::string currentOpDescription;
 };
 
 class FileOpProgressSink;
@@ -49,19 +38,38 @@ public:
     void syncProgress();
 
     inline int numOperationsInProgress() const { return mOperationsInProgress; }
-    std::vector<BatchFileOperation> mFileOperations;
+    inline bool isPaused() const { return mPauseFlag; }
 
-    ThreadedQueue<FileOpProgress> ResultQueue;
+    BatchFileOperation& getCurrentOperation();
+
+    void flagPauseOperation();
+    void resumeOperation();
     std::vector<BatchFileOperation> mHistory;
+
 private:
     void Run();
 
+    void pauseOperation();
+
+    void updateCurrentOpDescription(FileOpType type, const std::string& description);
+    void updateCurrentOpProgress(int workSoFar, int workTotal);
+    void finishCurrentOperation();
 
     int mOperationsInProgress = 0;
 
-    std::thread mThread;
-    ThreadedQueue<BatchFileOperation> WorkQueue;
-    std::atomic_bool mAlive{ true };
+    ThreadedQueue<BatchFileOperation> mWorkQueue;
+    std::vector<BatchFileOperation> mFileOperations;
+
+    std::atomic_bool        mAlive{ true };
     std::condition_variable mWakeCondition;
+
+    std::mutex          mPauseMutex;
+    std::atomic_bool    mPauseFlag{ false };
+    
+    std::thread mThread;
     std::unique_ptr<FileOpProgressSink> mProgressSink = nullptr;
+
+    int mCurrentOpIdx = -1;
+
+    friend class FileOpProgressSink;
 };

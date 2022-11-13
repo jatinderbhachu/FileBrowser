@@ -25,7 +25,9 @@ private:
     static int CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data);
     static int QuickAccessInputTextCallback(ImGuiInputTextCallbackData* data);
 
-    void fileOperationHistory();
+
+    void fileOperationStatusWindow();
+    void fileOperationHistoryWindow();
 
     bool mHistoryWindowOpen = false;
 

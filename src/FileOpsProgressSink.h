@@ -6,7 +6,7 @@ class FileOpsWorker;
 
 class FileOpProgressSink : public IFileOperationProgressSink {
 public:
-    FileOpProgressSink();
+    FileOpProgressSink(FileOpsWorker*);
 
     // IUnknown
     IFACEMETHODIMP QueryInterface(REFIID riid, void **ppv);
@@ -37,10 +37,8 @@ public:
     IFACEMETHODIMP ResetTimer();
     IFACEMETHODIMP PauseTimer();
     IFACEMETHODIMP ResumeTimer();
-    HRESULT DoModal();
 
-    int currentOperationIdx = -1;
-    FileOpsWorker* fileOpsWorker;
+    FileOpsWorker* mFileOpsWorker;
 
 private:
     long   _cRef;

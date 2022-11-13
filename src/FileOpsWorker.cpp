@@ -2,13 +2,26 @@
 #include "FileSystem.h"
 #include "Path.h"
 #include "FileOpsProgressSink.h"
-#include <memory>
-#include <thread>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#include <memory>
 #include <combaseapi.h>
 #include <assert.h>
+
+FileOpsWorker::FileOpsWorker() {
+    mThread = std::thread(&FileOpsWorker::Run, this);
+
+    mProgressSink = std::make_unique<FileOpProgressSink>(this);
+}
+
+FileOpsWorker::~FileOpsWorker() {
+    // cleanup worker thread
+    mAlive.store(false);
+    mWakeCondition.notify_all();
+    mThread.join();
+}
 
 void FileOpsWorker::Run() {
     HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -19,16 +32,15 @@ void FileOpsWorker::Run() {
 
     mFileOperations.resize(64);
 
-    std::mutex wakeMutex;
     printf("Starting worker thread..\n");
 
     std::vector<BatchFileOperation> fileOpsBatch;
     while(mAlive.load()) {
         BatchFileOperation batchOp;
 
-        if(WorkQueue.pop(batchOp)) {
+        if(mWorkQueue.pop(batchOp)) {
 
-            mProgressSink->currentOperationIdx = batchOp.idx;
+            mCurrentOpIdx = batchOp.idx;
             FileSystem::FileOperation op;
             op.init(mProgressSink.get());
             for(BatchFileOperation::Operation fileOp : batchOp.operations) {
@@ -64,11 +76,11 @@ void FileOpsWorker::Run() {
                 }
             }
 
-            op.allowUndo(true);
+            op.allowUndo(false);
             op.execute();
 
         } else {
-            std::unique_lock<std::mutex> lock(wakeMutex);
+            std::unique_lock<std::mutex> lock(mPauseMutex);
             mWakeCondition.wait(lock);
         }
     }
@@ -78,19 +90,61 @@ void FileOpsWorker::Run() {
     CoUninitialize();
 }
 
-FileOpsWorker::FileOpsWorker() {
-    mThread = std::thread(&FileOpsWorker::Run, this);
-
-    mProgressSink = std::make_unique<FileOpProgressSink>();
-    mProgressSink->currentOperationIdx = -1;
-    mProgressSink->fileOpsWorker = this;
+BatchFileOperation& FileOpsWorker::getCurrentOperation() {
+    assert(mCurrentOpIdx >= 0);
+    return mFileOperations[mCurrentOpIdx];
 }
 
-FileOpsWorker::~FileOpsWorker() {
-    // cleanup worker thread
-    mAlive.store(false);
+void FileOpsWorker::pauseOperation() {
+    if(mOperationsInProgress > 0) {
+        std::unique_lock<std::mutex> lock(mPauseMutex);
+        mWakeCondition.wait(lock);
+    }
+}
+
+void FileOpsWorker::flagPauseOperation() {
+    if(mOperationsInProgress > 0) {
+        mPauseFlag.store(true);
+    }
+}
+
+void FileOpsWorker::resumeOperation() {
+    mPauseFlag.store(false);
     mWakeCondition.notify_all();
-    mThread.join();
+}
+
+void FileOpsWorker::updateCurrentOpDescription(FileOpType type, const std::string& description) {
+    assert(mCurrentOpIdx >= 0);
+
+    mFileOperations[mCurrentOpIdx].currentOpType          = type;
+    mFileOperations[mCurrentOpIdx].currentOpDescription   = description;
+}
+
+void FileOpsWorker::updateCurrentOpProgress(int workSoFar, int workTotal) {
+    assert(mCurrentOpIdx >= 0);
+
+    mFileOperations[mCurrentOpIdx].currentProgress = workSoFar;
+    mFileOperations[mCurrentOpIdx].totalProgress = workTotal;
+}
+
+void FileOpsWorker::finishCurrentOperation() {
+    assert(mCurrentOpIdx >= 0);
+
+    BatchFileOperation& batchOperation = mFileOperations[mCurrentOpIdx];
+
+    mOperationsInProgress--;
+
+    // just invalidate the file operation at that index
+    batchOperation.idx = -1;
+
+    // TODO: replace with another struct specifically for history?
+    BatchFileOperation historyOp{};
+    historyOp.idx = -1;
+    historyOp.operations = batchOperation.operations;
+
+    printf("Finish operation\n");
+
+    mHistory.push_back(historyOp);
 }
 
 void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
@@ -108,7 +162,7 @@ void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
     // allocate new index if there is no open spot
     if(newOpIdx < 0) {
         mFileOperations.push_back(BatchFileOperation());
-        newOpIdx = mFileOperations.size() - 1;
+        newOpIdx = static_cast<int>(mFileOperations.size()) - 1;
     }
 
     BatchFileOperation& op = mFileOperations[newOpIdx];
@@ -117,42 +171,8 @@ void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
 
     mOperationsInProgress++;
 
-    WorkQueue.push(op);
+    mWorkQueue.push(op);
     mWakeCondition.notify_all();
     return;
-}
-
-void FileOpsWorker::syncProgress() {
-    FileOpProgress result;
-    while(ResultQueue.pop(result)) {
-        BatchFileOperation& op = mFileOperations[result.fileOpIdx];
-
-        switch(result.type) {
-            case FILE_OP_PROGRESS_UPDATE: 
-                {
-                    op.currentProgress = result.currentProgress;
-                    op.totalProgress = result.totalProgress;
-                } break;
-            case FILE_OP_PROGRESS_FINISH_SUCCESS:
-            case FILE_OP_PROGRESS_FINISH_ERROR: 
-                {
-                    mOperationsInProgress--;
-
-                    // just invalidate the file operation at that index
-                    op.idx = -1;
-                    
-                    // TODO: replace with another struct specifically for history?
-                    BatchFileOperation historyOp{};
-                    historyOp.idx = -1;
-                    historyOp.operations = op.operations;
-
-                    printf("Finish operation\n");
-
-                    mHistory.push_back(historyOp);
-                } break;
-            default:
-                break;
-        }
-    }
 }
 

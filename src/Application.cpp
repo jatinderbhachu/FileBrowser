@@ -160,7 +160,6 @@ void Application::run() {
                 mBrowserWidgets.erase(std::next(mBrowserWidgets.begin(), end), mBrowserWidgets.end());
         }
 
-
         // Command Palette
         {
             if(glfwGetKey(mWindow, GLFW_KEY_P) == GLFW_PRESS 
@@ -307,14 +306,11 @@ void Application::run() {
         {
             int statusBarFlags = ImGuiWindowFlags_NoDecoration
                 | ImGuiWindowFlags_NoDocking;
-            ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+            ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
             float height = ImGui::GetFrameHeight();
 
             //ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Set window background to red
-            ImGui::BeginViewportSideBar("##StatusBar", viewport, ImGuiDir_Down, height, window_flags);
-
-            // consume result queue
-            mFileOpsWorker.syncProgress();
+            ImGui::BeginViewportSideBar("##StatusBar", viewport, ImGuiDir_Down, height, windowFlags);
 
             ImGui::BeginMenuBar();
 
@@ -325,12 +321,18 @@ void Application::run() {
             }
 
             // display the first in-progress file operation
-            for(BatchFileOperation& op : mFileOpsWorker.mFileOperations) {
+            if(mFileOpsWorker.numOperationsInProgress() > 0) {
+                BatchFileOperation& op = mFileOpsWorker.getCurrentOperation();
                 if(op.idx >= 0) {
                     ImGui::Text("#%d - %d/%d", op.idx, op.currentProgress, op.totalProgress);
                     ImGui::SameLine();
-                    ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
-                    break;
+                    if(mFileOpsWorker.isPaused()) {
+                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                        ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
+                        ImGui::PopStyleColor();
+                    } else {
+                        ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
+                    }
                 }
             }
 
@@ -340,7 +342,9 @@ void Application::run() {
             ImGui::End();
         }
 
-        fileOperationHistory();
+
+        fileOperationStatusWindow();
+        fileOperationHistoryWindow();
 
         // Debug stuff
         {
@@ -369,7 +373,7 @@ void Application::run() {
     }
 }
 
-void Application::fileOperationHistory() {
+void Application::fileOperationHistoryWindow() {
     if(glfwGetKey(mWindow, GLFW_KEY_H) == GLFW_PRESS 
             && (glfwGetKey(mWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(mWindow, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS)) {
         mHistoryWindowOpen = true;
@@ -383,7 +387,6 @@ void Application::fileOperationHistory() {
     }
 
     for(const BatchFileOperation& batchOp : mFileOpsWorker.mHistory) {
-    
         for(const BatchFileOperation::Operation& op : batchOp.operations) {
             std::string fromLastSegment = op.from.getLastSegment();
             std::string toLastSegment = op.to.getLastSegment();
@@ -411,8 +414,65 @@ void Application::fileOperationHistory() {
     }
 
     ImGui::End();
-
 }
+
+// show window for any current file operations
+void Application::fileOperationStatusWindow() {
+
+    if(mFileOpsWorker.numOperationsInProgress() > 0) {
+        ImGui::SetNextWindowSize({mWindowWidth / 3.0f, 0.0f}, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({(mWindowWidth / 2.0f) - (mWindowWidth / 6.0f), mWindowHeight / 5.0f}, ImGuiCond_FirstUseEver);
+
+        int fileOpStatusFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse;
+        ImGui::Begin("File Operation Status", NULL, fileOpStatusFlags);
+
+        if(mFileOpsWorker.isPaused()) {
+            if(ImGui::Button("Resume")) {
+                mFileOpsWorker.resumeOperation();
+            }
+        } else {
+            if(ImGui::Button("Pause")) {
+                mFileOpsWorker.flagPauseOperation();
+            }
+        }
+
+        // display the first in-progress file operation
+        if(mFileOpsWorker.numOperationsInProgress() > 0) {
+            BatchFileOperation& op = mFileOpsWorker.getCurrentOperation();
+
+            const std::string& desc = op.currentOpDescription;
+            switch(op.currentOpType) {
+                case FileOpType::FILE_OP_COPY:
+                    {
+                        ImGui::Text("Copying %s", desc.c_str());
+                    } break;
+                case FileOpType::FILE_OP_MOVE:
+                    {
+                        ImGui::Text("Moving %s", desc.c_str());
+                    } break;
+                case FileOpType::FILE_OP_DELETE:
+                    {
+                        ImGui::Text("Deleting %s", desc.c_str());
+                    } break;
+                case FileOpType::FILE_OP_RENAME:
+                    {
+                        ImGui::Text("Renaming %s", desc.c_str());
+                    } break;
+            }
+
+            if(mFileOpsWorker.isPaused()) {
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::ProgressBar((float)op.currentProgress / (float)op.totalProgress);
+            }
+        }
+
+        ImGui::End();
+    }
+}
+
 
 int Application::CmdPalletInputTextCallback(ImGuiInputTextCallbackData* data) {
     Application* app = static_cast<Application*>(data->UserData);
