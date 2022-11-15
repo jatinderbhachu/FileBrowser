@@ -376,4 +376,15 @@ TEST_CASE("Path", "[simple]") {
         REQUIRE(path.str() == "C:\\abs\\relative");
         REQUIRE(path.getSegments().size() == 3);
     }
+
+    SECTION("File Extension") {
+        const std::string txtExtension(".txt");
+
+        REQUIRE(Path("C:/abs/test.txt").getFileExtension() == txtExtension);
+        REQUIRE(Path("./relative/test.txt").getFileExtension() == txtExtension);
+        REQUIRE(Path("./relative/test.gf.sd.txt").getFileExtension() == txtExtension);
+        REQUIRE(Path("./relative/test..sd.txt").getFileExtension() == txtExtension);
+        REQUIRE(Path("./relative/test").getFileExtension() == "");
+    }
+
 }

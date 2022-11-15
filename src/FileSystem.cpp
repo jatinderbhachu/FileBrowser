@@ -79,6 +79,36 @@ bool createDirectory(const Path& path) {
     return result != 0;
 }
 
+bool traverseDirectory(const Path &path, std::vector<Path>& out_DirectoryItems) {
+    if(path.isEmpty()) return false;
+    if(!doesPathExist(path)) return false;
+
+    std::vector<Path> dirsToTraverse( { path } );
+
+    int baseDepth = path.getSegmentCount();
+
+    while(!dirsToTraverse.empty()) {
+        const Path currentPath = dirsToTraverse.back();
+        dirsToTraverse.pop_back();
+
+        SOARecord items;
+        enumerateDirectory(currentPath, items);
+
+        for(size_t i = 0; i < items.size(); i++) {
+            Path itemPath(currentPath);
+            itemPath.appendName(items.getName(i));
+
+            out_DirectoryItems.push_back(itemPath);
+
+            if(!items.isFile(i)) {
+                dirsToTraverse.push_back( itemPath );
+            }
+        }
+    }
+
+    return true;
+}
+
 void getDriveLetters(std::vector<char> &out_driveLetters) {
     DWORD driveBits = GetLogicalDrives();
 
@@ -322,7 +352,7 @@ void FileOperation::move(const Path& itemPath, const Path& targetPath) {
     destinationPath->Release();
 }
 
-void FileOperation::copy(const Path& itemPath, const Path& targetPath) {
+void FileOperation::copy(const Path& itemPath, const Path& targetPath, const std::string& newName) {
     assert(mOperation != nullptr);
     if(!doesPathExist(itemPath)) {
         printf("%s does not exist\n", itemPath.str().c_str());
@@ -345,7 +375,10 @@ void FileOperation::copy(const Path& itemPath, const Path& targetPath) {
         return;
     }
 
-    mOperation->CopyItem(itemToMove, destinationPath, NULL, NULL);
+
+    std::wstring wNewName = Util::Utf8ToWstring(newName);
+
+    mOperation->CopyItem(itemToMove, destinationPath, wNewName.c_str(), NULL);
 
     itemToMove->Release();
     destinationPath->Release();

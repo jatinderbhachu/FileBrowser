@@ -427,11 +427,11 @@ void Application::fileOperationStatusWindow() {
         ImGui::Begin("File Operation Status", NULL, fileOpStatusFlags);
 
         if(mFileOpsWorker.isPaused()) {
-            if(ImGui::Button("Resume")) {
+            if(ImGui::Button(ICON_FK_PLAY)) {
                 mFileOpsWorker.resumeOperation();
             }
         } else {
-            if(ImGui::Button("Pause")) {
+            if(ImGui::Button(ICON_FK_PAUSE)) {
                 mFileOpsWorker.flagPauseOperation();
             }
         }

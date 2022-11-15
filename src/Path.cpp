@@ -167,14 +167,14 @@ bool Path::hasFileExtension() {
 
     std::string_view lastSegment = mSegments.back();
 
-    return lastSegment.find('.') != std::string::npos;
+    return lastSegment.rfind('.') != std::string::npos;
 }
 
 std::string Path::getFileExtension() {
     if(hasFileExtension()) {
         std::string_view lastSegment = mSegments.back();
 
-        size_t dotPos = lastSegment.find('.');
+        size_t dotPos = lastSegment.rfind('.');
         return std::string(lastSegment.substr(dotPos));
     }
     return "";
@@ -202,6 +202,25 @@ bool Path::isEmpty() const {
     return mType == PATH_EMPTY;
 }
 
+std::string Path::getParentStr() {
+    if(mSegments.empty()) return "";
+
+    std::string result("");
+
+    for(size_t i = 0; i < mSegments.size() - 1; i++) {
+        result.append(mSegments[i]);
+        result.append(std::string(1, SEPARATOR));
+    }
+
+    result.pop_back();
+
+    return result;
+}
+
 std::vector<std::string_view> Path::getSegments() const {
     return mSegments;
+}
+
+int Path::getSegmentCount() const {
+    return mSegments.size();
 }

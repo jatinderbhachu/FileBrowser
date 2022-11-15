@@ -78,7 +78,6 @@ IFACEMETHODIMP FileOpProgressSink::PostRenameItem(DWORD /*dwFlags*/, IShellItem 
 }
 IFACEMETHODIMP FileOpProgressSink::PreMoveItem(DWORD dwFlags, IShellItem *psiItem, IShellItem *psiDestinationFolder, PCWSTR pszNewName)
 {
-
     LPWSTR itemName;
     psiItem->GetDisplayName(SIGDN_NORMALDISPLAY, &itemName);
     std::string newName(Util::WstringToUtf8(itemName));

@@ -166,14 +166,14 @@ void BrowserWidget::update() {
     directorySegments();
 
     // up directory button
-    if(ImGui::Button("..")) {
+    if(ImGui::Button(ICON_FK_ARROW_UP)) {
         mCurrentDirectory.popSegment();
         mDirectoryChanged = true;
     }
 
     ImGui::SameLine();
 
-    if(ImGui::Button("Refresh")) {
+    if(ImGui::Button(ICON_FK_REFRESH)) {
         mDirectoryChanged = true;
     }
 
@@ -325,8 +325,14 @@ void BrowserWidget::handleInput() {
                 BatchFileOperation::Operation op;
                 op.from = itemPath;
                 op.opType = FileOpType::FILE_OP_DELETE;
+
+
+
                 fileOperation.operations.push_back(op);
             }
+
+            fileOperation.allowUndo = !ImGui::IsKeyDown(ImGuiMod_Shift);
+
             mFileOpsWorker->addFileOperation(fileOperation);
         }
     }

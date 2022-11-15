@@ -18,7 +18,7 @@ namespace FileSystem {
             bool init(FileOpProgressSink* ps = nullptr);
             void remove(const Path& itemPath);
             void move(const Path& itemPath, const Path& toDirectory);
-            void copy(const Path& itemPath, const Path& toDirectory);
+            void copy(const Path& itemPath, const Path& toDirectory, const std::string& newName = "");
             void rename(const Path& itemPath, const std::string& newName);
             void allowUndo(bool allow);
             void execute();
@@ -95,6 +95,8 @@ namespace FileSystem {
 
     bool enumerateDirectory(const Path& path, SOARecord& out_DirectoryItems);
     bool createDirectory(const Path& path);
+
+    bool traverseDirectory(const Path& path, std::vector<Path>& out_DirectoryItems);
 
     void getDriveLetters(std::vector<char>& out_driveLetters);
     void getDriveNames(std::vector<std::string>& out_driveNames);

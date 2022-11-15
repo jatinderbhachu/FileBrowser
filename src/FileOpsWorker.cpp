@@ -2,6 +2,7 @@
 #include "FileSystem.h"
 #include "Path.h"
 #include "FileOpsProgressSink.h"
+#include "StringUtils.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -51,7 +52,7 @@ void FileOpsWorker::Run() {
                         assert(!fileOp.from.isEmpty() && !fileOp.to.isEmpty());
                         Path fromPath(fileOp.from); fromPath.toAbsolute();
                         Path toPath(fileOp.to); toPath.toAbsolute();
-                        op.copy(fromPath, toPath);
+                        op.copy(fromPath, toPath, fileOp.newName);
                     } break;
                     case FileOpType::FILE_OP_MOVE: 
                     {
@@ -76,7 +77,7 @@ void FileOpsWorker::Run() {
                 }
             }
 
-            op.allowUndo(false);
+            op.allowUndo(batchOp.allowUndo);
             op.execute();
 
         } else {
@@ -147,8 +148,8 @@ void FileOpsWorker::finishCurrentOperation() {
     mHistory.push_back(historyOp);
 }
 
-void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
-    if(newOp.operations.empty()) return; 
+void FileOpsWorker::addFileOperation(BatchFileOperation newBatch) {
+    if(newBatch.operations.empty()) return; 
 
     // check if there is an open spot to add the file operation
     int newOpIdx = -1;
@@ -165,13 +166,76 @@ void FileOpsWorker::addFileOperation(BatchFileOperation newOp) {
         newOpIdx = static_cast<int>(mFileOperations.size()) - 1;
     }
 
-    BatchFileOperation& op = mFileOperations[newOpIdx];
-    op.idx = newOpIdx;
-    op.operations = newOp.operations;
+    printf("Add file op\n");
+
+
+    auto xCreateDuplicateName = [](Path& itemPath) {
+        std::string lastSegment = itemPath.getLastSegment();
+        std::string newItemName = lastSegment;
+        std::string fileExtension = itemPath.getFileExtension();
+
+        static const std::string COPY_TOKEN("_copy_");
+
+        // has "_copy_%d" already?
+        std::string::size_type originalDotPos = lastSegment.rfind('.');
+        originalDotPos = originalDotPos == std::string::npos ? lastSegment.size() : originalDotPos;
+
+        Path newPath(itemPath);
+        while(FileSystem::doesPathExist(newPath)) {
+            lastSegment = newPath.getLastSegment();
+            std::string::size_type copyPos = lastSegment.find(COPY_TOKEN, originalDotPos);
+
+            std::string::size_type dotPos = lastSegment.rfind('.');
+            dotPos = dotPos == std::string::npos ? lastSegment.size() : dotPos;
+
+            if(copyPos != std::string::npos) {
+                // get the number and increment interface                        
+                std::string::size_type copyEndPos = copyPos + COPY_TOKEN.size();
+                std::string copyNumStr = lastSegment.substr(copyEndPos, dotPos - copyEndPos );
+                uint32_t val = std::strtoul(copyNumStr.c_str(), NULL, 10);
+                val++;
+
+                newItemName = lastSegment.substr(0, copyPos) + COPY_TOKEN + std::to_string(val) + fileExtension;
+
+                newPath.popSegment();
+                newPath.appendName(newItemName);
+            } else {
+                newItemName = lastSegment.substr(0, dotPos) + COPY_TOKEN + std::to_string(1) + fileExtension;
+
+                newPath.popSegment();
+                newPath.appendName(newItemName);
+            }
+        }
+
+
+        return newItemName;
+    };
+
+
+    for(BatchFileOperation::Operation& op : newBatch.operations) {
+        switch(op.opType) {
+            case FileOpType::FILE_OP_COPY:
+                {
+                    // is copying to same directory?
+                    if(op.from.getParentStr() == op.to.str()) {
+                        std::string newName = xCreateDuplicateName(op.from);
+
+                        op.newName = newName;
+                    }
+                } break;
+            case FileOpType::FILE_OP_MOVE:
+                {
+                    // TODO: show if we want to replace the file(s) or skip them
+                } break;
+            default: break;
+        }
+    }
+
+    newBatch.idx = newOpIdx;
+    mFileOperations[newOpIdx] = newBatch;
 
     mOperationsInProgress++;
-
-    mWorkQueue.push(op);
+    mWorkQueue.push(mFileOperations[newOpIdx]);
     mWakeCondition.notify_all();
     return;
 }

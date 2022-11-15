@@ -17,12 +17,14 @@ public:
         FileOpType opType;
         Path from;
         Path to;
+        std::string newName = "";
     };
     std::vector<Operation> operations;
+    int idx = -1;
+    bool allowUndo = true;
+
     int currentProgress = 0;
     int totalProgress = INT32_MAX;
-    int idx = -1;
-
     FileOpType currentOpType;
     std::string currentOpDescription;
 };

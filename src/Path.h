@@ -37,7 +37,10 @@ public:
     PathType getType() const;
     bool isEmpty() const;
 
+    std::string getParentStr();
+
     std::vector<std::string_view> getSegments() const;
+    int getSegmentCount() const;
 private:
     void parse();
 
