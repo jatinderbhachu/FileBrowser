@@ -46,7 +46,10 @@ Application::Application() {
     ImGui::LoadIniSettingsFromMemory(DefaultLayoutSettings);
 
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+
+    // FIXME: Need to fix keyboard navigation
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 
     //io.Fonts->AddFontDefault();
