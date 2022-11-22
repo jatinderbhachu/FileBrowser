@@ -1,14 +1,10 @@
 #include "Path.h"
 
-#include "StringUtils.h"
-#include "FileSystem.h"
-
 #include <iostream>
 #include <assert.h>
 
-static const char SEPARATOR = '\\';
-static const std::string CURRENT_PATH = ".";
-static const std::string PARENT_PATH = "..";
+#include "StringUtils.h"
+#include "FileSystem.h"
 
 Path::Path()
     : mText(".") {
@@ -33,14 +29,24 @@ Path::Path(const Path& other)
     parse();
 }
 
-Path& Path::operator=(const Path &rhs) {
+Path& Path::operator=(const Path& rhs) {
     mText = rhs.mText;
     parse();
 
     return *this;
 }
 
+Path& Path::operator=(const Path&& rhs) {
+    mText = std::move(rhs.mText),
+    mSegments = std::move(rhs.mSegments),
+    mType = rhs.mType;
 
+    return *this;
+}
+
+/**
+  * Parses the path string in mText into segments and determines the PathType
+  */
 void Path::parse() {
     if(mText.empty()) {
         mType = PathType::PATH_EMPTY;
@@ -59,31 +65,33 @@ void Path::parse() {
     // parse into segments separated by SEPARATOR
     std::string_view pathStr(mText);
 
-    size_t pos = 0;
-    size_t prev = 0;
+    size_t pos      = 0;
+    size_t prevPos  = 0;
     while(pos <= mText.size()) {
         if(mText[pos] == SEPARATOR || pos == mText.size()) {
-            int padding = (prev > 0 ? 1 : 0);
-            std::string_view segment(pathStr.substr(prev + padding, pos - prev - padding));
+            // padding excludes SEPARATOR from the segments
+            int padding = mSegments.empty() ? 0 : 1;
+            size_t start = prevPos + padding;
+            size_t length = pos - prevPos - padding;
+            std::string_view segment(pathStr.substr(start, length));
 
             assert(!segment.empty() && "Path segment is empty");
             mSegments.push_back(segment);
 
-            prev = pos;
+            prevPos = pos;
         }
         pos++;
     }
 
-    // idx of ":\"
-    std::string rootStr = std::string(":") + std::string(1, SEPARATOR);
-    size_t rootIdx = pathStr.find(rootStr);
-    size_t colonIdx = pathStr.find(':');
-    if(colonIdx == (pathStr.size() - 1) || rootIdx != std::string::npos) {
+    // index of ":\\" 
+    size_t driveRootIdx = pathStr.find(DRIVE_ROOT);
+    char lastChar = pathStr.back();
+
+    // is "C:" or contains ":\\"
+    if(lastChar == ':' || driveRootIdx != std::string::npos) {
         mType = PATH_ABSOLUTE;
-        //std::cout << mText << " Path is ABSOLUTE\n";
     } else {
         mType = PATH_RELATIVE;
-        //std::cout << mText << " Path is RELATIVE\n";
     }
 }
 
@@ -96,11 +104,10 @@ std::wstring Path::wstr() const {
 }
 
 void Path::popSegment() {
-    size_t indexOfLast = mText.find_last_of( SEPARATOR );
+    size_t idxOfLastSeparator = mText.find_last_of( SEPARATOR );
 
-    if(indexOfLast != std::string::npos) {
-        //mSegments.pop_back();
-        mText.erase(indexOfLast, std::string::npos);
+    if(idxOfLastSeparator != std::string::npos) {
+        mText.erase(idxOfLastSeparator, std::string::npos);
         parse();
     } else {
         mSegments.clear();
@@ -141,13 +148,13 @@ void Path::toAbsolute() {
     Path processPath = FileSystem::getCurrentProcessPath();
     std::vector<std::string_view> baseSegments = processPath.getSegments();
 
-    for(auto relSegment : mSegments) {
-        if(relSegment == CURRENT_PATH) {
+    for(auto relativeSegment : mSegments) {
+        if(relativeSegment == CURRENT_PATH) {
             // do nothing ..
-        } else if (relSegment == PARENT_PATH) {
+        } else if (relativeSegment == PARENT_PATH) {
             baseSegments.pop_back();
         } else {
-            baseSegments.push_back(relSegment);
+            baseSegments.push_back(relativeSegment);
         }
     }
 
@@ -188,9 +195,8 @@ std::string Path::getLastSegment() const {
 }
 
 bool Path::isDriveRoot() const {
-    size_t colonIdx = mText.find(':');
-
     // is : the last character
+    size_t colonIdx = mText.find(':');
     return colonIdx == (mText.size() - 1);
 }
 
@@ -202,6 +208,10 @@ bool Path::isEmpty() const {
     return mType == PATH_EMPTY;
 }
 
+/**
+  * Returns path of the parent directory
+  * e.g. "C:/test/abc" will return "C:/test" 
+  */
 std::string Path::getParentStr() {
     if(mSegments.empty()) return "";
 

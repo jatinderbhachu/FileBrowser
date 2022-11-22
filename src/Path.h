@@ -5,6 +5,10 @@
 
 class Path 
 {
+    inline static const char        SEPARATOR      = '\\';
+    inline static const std::string CURRENT_PATH   = ".";
+    inline static const std::string PARENT_PATH    = "..";
+    inline static const std::string DRIVE_ROOT     = ":" + std::string(1, SEPARATOR);
 public:
     enum PathType {
        PATH_ABSOLUTE,
@@ -17,6 +21,7 @@ public:
     Path(const Path& other);
     Path(Path&& other);
     Path& operator=(const Path& rhs);
+    Path& operator=(const Path&& rhs);
 
     const std::string& str() const;
     std::wstring wstr() const;
