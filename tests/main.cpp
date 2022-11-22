@@ -261,21 +261,21 @@ TEST_CASE( "File operations", "[simple]" ) {
 TEST_CASE("Path", "[simple]") {
     SECTION("absolute path") {
         Path path("C:/abs/path");
-        REQUIRE(path.getType() == Path::PATH_ABSOLUTE);
+        REQUIRE(path.getType() == Path::PathType::PATH_ABSOLUTE);
 
         path = Path("C:/");
-        REQUIRE(path.getType() == Path::PATH_ABSOLUTE);
+        REQUIRE(path.getType() == Path::PathType::PATH_ABSOLUTE);
     }
 
     SECTION("Relative path") {
         Path path("../abs/path");
-        REQUIRE(path.getType() == Path::PATH_RELATIVE);
+        REQUIRE(path.getType() == Path::PathType::PATH_RELATIVE);
 
         path = Path("./abs/path");
-        REQUIRE(path.getType() == Path::PATH_RELATIVE);
+        REQUIRE(path.getType() == Path::PathType::PATH_RELATIVE);
 
         path = Path("..");
-        REQUIRE(path.getType() == Path::PATH_RELATIVE);
+        REQUIRE(path.getType() == Path::PathType::PATH_RELATIVE);
     }
 
     SECTION("Empty path") {

@@ -10,7 +10,7 @@ class Path
     inline static const std::string PARENT_PATH    = "..";
     inline static const std::string DRIVE_ROOT     = ":" + std::string(1, SEPARATOR);
 public:
-    enum PathType {
+    enum class PathType {
        PATH_ABSOLUTE,
        PATH_RELATIVE,
        PATH_EMPTY,

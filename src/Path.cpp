@@ -89,9 +89,9 @@ void Path::parse() {
 
     // is "C:" or contains ":\\"
     if(lastChar == ':' || driveRootIdx != std::string::npos) {
-        mType = PATH_ABSOLUTE;
+        mType = PathType::PATH_ABSOLUTE;
     } else {
-        mType = PATH_RELATIVE;
+        mType =PathType:: PATH_RELATIVE;
     }
 }
 
@@ -117,7 +117,7 @@ void Path::popSegment() {
 }
 
 void Path::appendRelative(const Path& relativePath) {
-    assert(relativePath.getType() == PATH_RELATIVE && "Path is not relative.");
+    assert(relativePath.getType() == PathType::PATH_RELATIVE && "Path is not relative.");
 
     auto relativeSegments = relativePath.getSegments();
 
@@ -143,7 +143,7 @@ void Path::appendName(const std::string& name) {
 }
 
 void Path::toAbsolute() {
-    if(mType == PATH_ABSOLUTE) return;
+    if(mType == PathType::PATH_ABSOLUTE) return;
 
     Path processPath = FileSystem::getCurrentProcessPath();
     std::vector<std::string_view> baseSegments = processPath.getSegments();
@@ -205,7 +205,7 @@ Path::PathType Path::getType() const {
 }
 
 bool Path::isEmpty() const {
-    return mType == PATH_EMPTY;
+    return mType == PathType::PATH_EMPTY;
 }
 
 /**
